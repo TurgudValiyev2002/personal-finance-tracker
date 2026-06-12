@@ -96,7 +96,14 @@ const els = {
   clearFilters: document.getElementById("clearFilters"),
   transactionTable: document.getElementById("transactionTable"),
   statsRange: document.getElementById("statsRange"),
-  analysisType: document.getElementById("analysisType"),
+  openCostAnalysis: document.getElementById("openCostAnalysis"),
+  openProfitAnalysis: document.getElementById("openProfitAnalysis"),
+  analysisDialog: document.getElementById("analysisDialog"),
+  closeAnalysisDialog: document.getElementById("closeAnalysisDialog"),
+  analysisModeChip: document.getElementById("analysisModeChip"),
+  analysisTitle: document.getElementById("analysisTitle"),
+  analysisSubtitle: document.getElementById("analysisSubtitle"),
+  analysisDialogBody: document.getElementById("analysisDialogBody"),
   insightGrid: document.getElementById("insightGrid"),
   primaryChartTitle: document.getElementById("primaryChartTitle"),
   secondaryChartTitle: document.getElementById("secondaryChartTitle"),
@@ -289,6 +296,25 @@ function applyMonthTheme() {
 }
 
 function renderSeasonScene(month, season) {
+  if (month >= 5 && month <= 8) {
+    els.seasonScene.innerHTML = `<span class="season-object sun-orbit"></span>`;
+    return;
+  }
+
+  if (month === 4 || month === 11) {
+    els.seasonScene.innerHTML = [
+      `<span class="season-object cloud" style="--x:12%;--duration:8s"></span>`,
+      `<span class="season-object cloud" style="--x:54%;--duration:10s"></span>`,
+      ...Array.from({ length: 24 }, (_, index) => {
+        const x = (index * 29) % 100;
+        const duration = 1.8 + (index % 5) * 0.22;
+        const delay = -1 * (index % 8) * 0.3;
+        return `<span class="season-object rain" style="--x:${x}%;--duration:${duration}s;--delay:${delay}s"></span>`;
+      })
+    ].join("");
+    return;
+  }
+
   const type = month === 12 || season === "winter"
     ? "snow"
     : month === 9 || season === "autumn"
@@ -523,17 +549,28 @@ function renderStatistics() {
   const costEntries = entries.filter((entry) => entry.type === "cost");
   const earningEntries = entries.filter((entry) => entry.type === "earning");
   const byCategory = groupSum(costEntries, "category");
-  const analysis = els.analysisType.value;
+  const savingsRate = summary.earnings > 0 ? (summary.savings / summary.earnings) * 100 : 0;
+  const topCategory = Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0];
+  const largestEntry = entries.slice().sort((a, b) => Number(b.amount) - Number(a.amount))[0];
+  const activeDays = new Set(entries.map((entry) => entry.date)).size;
 
-  if (analysis === "profit") {
-    renderProfitAnalysis(entries, summary);
-  } else if (analysis === "cashflow") {
-    renderCashFlowAnalysis(entries, summary);
-  } else if (analysis === "recommendations") {
-    renderRecommendationAnalysis(entries, summary, byCategory);
-  } else {
-    renderCostAnalysis(entries, costEntries, earningEntries, summary, byCategory);
-  }
+  els.primaryChartTitle.textContent = "Category share";
+  els.secondaryChartTitle.textContent = "Top categories by value";
+  els.insightGrid.innerHTML = `
+    ${insight("Total movement", money(summary.earnings + summary.costs), `${entries.length} transactions`)}
+    ${insight("Top category", topCategory ? escapeHtml(topCategory[0]) : "None", topCategory ? money(topCategory[1]) : "No costs yet", "warn")}
+    ${insight("Largest transaction", largestEntry ? money(largestEntry.amount) : "None", largestEntry ? escapeHtml(largestEntry.description) : "No entries yet")}
+    ${insight("Savings rate", `${Math.round(savingsRate)}%`, `${activeDays} active day${activeDays === 1 ? "" : "s"}`, savingsRate >= 30 ? "good" : savingsRate >= 10 ? "warn" : "bad")}
+  `;
+  renderCategoryPie(byCategory, summary.costs);
+  renderRankChart(els.trendChart, byCategory, summary.costs);
+  els.extraStats.innerHTML = `
+    <div class="stat-card-grid">
+      ${statCard("General interpretation", generalInterpretation(summary), "This summary compares earnings, costs, and saved balance for the selected range.")}
+      ${statCard("Open detailed windows", "Cost / Profit", "Use the buttons above to inspect focused plots in separate windows.")}
+      ${statCard("Recommendation", buildRecommendations(entries, summary, byCategory)[0].title, buildRecommendations(entries, summary, byCategory)[0].text)}
+    </div>
+  `;
 }
 
 function formatShortDate(date) {
@@ -647,6 +684,40 @@ function statCard(title, value, note) {
   return `<article class="stat-card"><h5>${title}</h5><p><strong>${value}</strong></p><p>${note}</p></article>`;
 }
 
+function renderCategoryPie(byCategory, total) {
+  const rows = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (!rows.length || total <= 0) {
+    els.categoryChart.innerHTML = `<p class="empty-state">No category data for this range.</p>`;
+    return;
+  }
+  els.categoryChart.innerHTML = pieHtml(rows, total);
+}
+
+function pieHtml(rows, total) {
+  const colors = ["#0f766e", "#128a57", "#b7791f", "#c24133", "#2563eb", "#7c3aed", "#0891b2", "#db2777"];
+  let current = 0;
+  const stops = rows.map(([category, value], index) => {
+    const start = current;
+    const end = current + (value / total) * 360;
+    current = end;
+    return `${colors[index % colors.length]} ${start}deg ${end}deg`;
+  }).join(", ");
+  return `
+    <div class="pie-summary">
+      <div class="pie-chart" style="background:conic-gradient(${stops})"></div>
+      <div class="pie-legend">
+        ${rows.map(([category, value], index) => `
+          <div class="pie-legend-row">
+            <span class="pie-dot" style="background:${colors[index % colors.length]}"></span>
+            <strong>${escapeHtml(category)}</strong>
+            <span>${Math.round((value / total) * 100)}% ${money(value)}</span>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function renderRankChart(target, byCategory, total) {
   const rows = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 8);
   const max = Math.max(...rows.map((row) => row[1]), 1);
@@ -656,14 +727,18 @@ function renderRankChart(target, byCategory, total) {
   }
   target.innerHTML = rows.map(([category, value]) => {
     const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-    return `
+    return rankRowHtml(category, value, max, `${pct}%<br>${money(value)}`);
+  }).join("");
+}
+
+function rankRowHtml(label, value, max, rightText = money(value), color = "linear-gradient(90deg, var(--teal), color-mix(in srgb, var(--teal) 70%, #22c55e))") {
+  return `
     <div class="rank-row">
-      <strong>${escapeHtml(category)}</strong>
-      <div class="rank-track"><div class="rank-fill" style="width:${(value / max) * 100}%"></div></div>
-      <span>${pct}%<br>${money(value)}</span>
+      <strong>${escapeHtml(label)}</strong>
+      <div class="rank-track"><div class="rank-fill" style="width:${max > 0 ? (Math.abs(value) / max) * 100 : 0}%;background:${color}"></div></div>
+      <span>${rightText}</span>
     </div>
   `;
-  }).join("");
 }
 
 function renderTrendChart(entries) {
@@ -764,6 +839,92 @@ function renderRecommendationFocus(recommendations) {
       <span>${row.value}/10</span>
     </div>
   `).join("")}</div>`;
+}
+
+function openAnalysisWindow(type) {
+  const entries = entriesForStatsRange();
+  const summary = summarize(entries);
+  const costEntries = entries.filter((entry) => entry.type === "cost");
+  const byCategory = groupSum(costEntries, "category");
+  const rows = monthlyRows(entries);
+  const rangeLabel = els.statsRange.options[els.statsRange.selectedIndex].textContent.toLowerCase();
+
+  els.analysisDialog.classList.toggle("cost-mode", type === "cost");
+  els.analysisDialog.classList.toggle("profit-mode", type === "profit");
+  els.analysisModeChip.className = `mode-chip ${type === "profit" ? "add" : "edit"}`;
+  els.analysisModeChip.textContent = type === "profit" ? "Profit mode" : "Cost mode";
+  els.analysisTitle.textContent = type === "profit" ? "Profit analysis" : "Cost analysis";
+  els.analysisSubtitle.textContent = `Detailed ${type} statistics for ${rangeLabel}.`;
+  els.analysisDialogBody.innerHTML = type === "profit"
+    ? profitWindowHtml(entries, summary, rows)
+    : costWindowHtml(costEntries, byCategory, summary);
+  els.analysisDialog.showModal();
+}
+
+function costWindowHtml(costEntries, byCategory, summary) {
+  const total = summary.costs;
+  const rows = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
+  const maxCategory = Math.max(...rows.map((row) => row[1]), 1);
+  const largestCosts = costEntries.slice().sort((a, b) => Number(b.amount) - Number(a.amount)).slice(0, 7);
+  const byDate = groupSum(costEntries, "date");
+  const activeDays = Object.entries(byDate).sort((a, b) => b[1] - a[1]);
+  const maxDay = Math.max(...activeDays.map((row) => row[1]), 1);
+  const avgCost = costEntries.length ? total / costEntries.length : 0;
+
+  return `
+    <div class="insight-grid">
+      ${insight("Total costs", money(total), `${costEntries.length} cost entries`, total > 0 ? "warn" : "")}
+      ${insight("Average cost entry", money(avgCost), "Mean value per cost")}
+      ${insight("Cost categories", String(rows.length), "Unique spending groups")}
+      ${insight("Largest cost", largestCosts[0] ? money(largestCosts[0].amount) : "None", largestCosts[0] ? escapeHtml(largestCosts[0].description) : "No costs")}
+    </div>
+    <div class="analysis-grid">
+      <section class="analysis-card"><h4>Cost share pie</h4>${rows.length ? pieHtml(rows.slice(0, 8), total) : `<p class="empty-state">No costs yet.</p>`}</section>
+      <section class="analysis-card"><h4>Top categories by value</h4><div class="rank-chart">${rows.length ? rows.slice(0, 8).map(([label, value]) => rankRowHtml(label, value, maxCategory, `${Math.round((value / total) * 100)}% ${money(value)}`)).join("") : `<p class="empty-state">No categories yet.</p>`}</div></section>
+      <section class="analysis-card"><h4>Most expensive days</h4><div class="rank-chart">${activeDays.length ? activeDays.slice(0, 8).map(([date, value]) => rankRowHtml(formatShortDate(date), value, maxDay, money(value), "var(--red)")).join("") : `<p class="empty-state">No daily costs yet.</p>`}</div></section>
+      <section class="analysis-card"><h4>Largest cost entries</h4><div class="rank-chart">${largestCosts.length ? largestCosts.map((entry) => rankRowHtml(entry.description, Number(entry.amount), Number(largestCosts[0].amount), `${formatShortDate(entry.date)} ${money(entry.amount)}`, "var(--amber)")).join("") : `<p class="empty-state">No cost entries yet.</p>`}</div></section>
+    </div>
+  `;
+}
+
+function profitWindowHtml(entries, summary, rows) {
+  const rate = summary.earnings > 0 ? (summary.savings / summary.earnings) * 100 : 0;
+  const costPressure = summary.earnings > 0 ? (summary.costs / summary.earnings) * 100 : 0;
+  const netRows = rows.map((row) => ({ ...row, net: row.earnings - row.costs }));
+  const maxNet = Math.max(...netRows.map((row) => Math.abs(row.net)), 1);
+  const recs = buildRecommendations(entries, summary, groupSum(entries.filter((entry) => entry.type === "cost"), "category"));
+  let cumulative = 0;
+  const cumulativeRows = netRows.map((row) => {
+    cumulative += row.net;
+    return { label: row.short, value: cumulative };
+  });
+  const maxCum = Math.max(...cumulativeRows.map((row) => Math.abs(row.value)), 1);
+
+  return `
+    <div class="insight-grid">
+      ${insight("Net savings", money(summary.savings), "Earnings minus costs", summary.savings >= 0 ? "good" : "bad")}
+      ${insight("Savings rate", `${Math.round(rate)}%`, `${Math.round(costPressure)}% of earnings spent`, rate >= 30 ? "good" : rate >= 10 ? "warn" : "bad")}
+      ${insight("Total earnings", money(summary.earnings), "Income side", "good")}
+      ${insight("Total costs", money(summary.costs), "Spending side", summary.costs > summary.earnings ? "bad" : "warn")}
+    </div>
+    <div class="analysis-grid">
+      <section class="analysis-card"><h4>Earnings, costs, savings split</h4>${profitSplitHtml(summary)}</section>
+      <section class="analysis-card"><h4>Net balance by month</h4><div class="rank-chart">${netRows.length ? netRows.map((row) => rankRowHtml(row.short, row.net, maxNet, money(row.net), row.net >= 0 ? "var(--green)" : "var(--red)")).join("") : `<p class="empty-state">No monthly data yet.</p>`}</div></section>
+      <section class="analysis-card"><h4>Cumulative savings</h4><div class="rank-chart">${cumulativeRows.length ? cumulativeRows.map((row) => rankRowHtml(row.label, row.value, maxCum, money(row.value), row.value >= 0 ? "var(--green)" : "var(--red)")).join("") : `<p class="empty-state">No cumulative data yet.</p>`}</div></section>
+      <section class="analysis-card"><h4>AI recommendations</h4><div class="recommendation-list">${recs.map((item) => `<article class="recommendation"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.text)}</span></article>`).join("")}</div></section>
+    </div>
+  `;
+}
+
+function profitSplitHtml(summary) {
+  const total = Math.max(summary.earnings, summary.costs, Math.abs(summary.savings), 1);
+  return `
+    <div class="mini-bars">
+      ${rankRowHtml("Earnings", summary.earnings, total, money(summary.earnings), "var(--green)")}
+      ${rankRowHtml("Costs", summary.costs, total, money(summary.costs), "var(--red)")}
+      ${rankRowHtml("Savings", summary.savings, total, money(summary.savings), summary.savings >= 0 ? "var(--green)" : "var(--red)")}
+    </div>
+  `;
 }
 
 function monthlyRows(entries) {
@@ -870,6 +1031,13 @@ function savingsHealth(summary) {
   if (rate >= 30) return "Strong";
   if (rate >= 10) return "Okay";
   return "Weak";
+}
+
+function generalInterpretation(summary) {
+  if (summary.earnings === 0 && summary.costs === 0) return "No data yet";
+  if (summary.earnings === 0) return "Only costs recorded";
+  if (summary.savings >= 0) return "Positive period";
+  return "Costs exceed earnings";
 }
 
 function renderInlineList(items) {
@@ -1139,7 +1307,9 @@ function bindEvents() {
   els.filterFrom.addEventListener("change", renderTransactions);
   els.filterTo.addEventListener("change", renderTransactions);
   els.clearFilters.addEventListener("click", clearFilters);
-  els.analysisType.addEventListener("change", renderStatistics);
+  els.openCostAnalysis.addEventListener("click", () => openAnalysisWindow("cost"));
+  els.openProfitAnalysis.addEventListener("click", () => openAnalysisWindow("profit"));
+  els.closeAnalysisDialog.addEventListener("click", () => els.analysisDialog.close());
   els.statsRange.addEventListener("change", renderStatistics);
   els.transactionTable.addEventListener("click", handleTableAction);
   els.exportJson.addEventListener("click", exportJson);

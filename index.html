@@ -134,27 +134,23 @@
             <div class="section-heading">
               <h3>Statistics</h3>
               <div class="stats-controls">
-                <select id="analysisType" aria-label="Analysis type">
-                  <option value="cost">Cost analysis</option>
-                  <option value="profit">Profit analysis</option>
-                  <option value="cashflow">Cash flow analysis</option>
-                  <option value="recommendations">AI recommendations</option>
-                </select>
                 <select id="statsRange" aria-label="Statistics range">
                   <option value="month">Selected month</option>
                   <option value="year">Selected year</option>
                   <option value="all">All time</option>
                 </select>
+                <button id="openCostAnalysis" class="secondary-button compact" type="button">Cost analysis</button>
+                <button id="openProfitAnalysis" class="secondary-button compact" type="button">Profit analysis</button>
               </div>
             </div>
             <div id="insightGrid" class="insight-grid"></div>
             <div class="stats-layout">
               <section>
-                <h4 id="primaryChartTitle">Where the money went</h4>
+                <h4 id="primaryChartTitle">Category share</h4>
                 <div id="categoryChart" class="rank-chart"></div>
               </section>
               <section>
-                <h4 id="secondaryChartTitle">Cash flow by month</h4>
+                <h4 id="secondaryChartTitle">Top categories</h4>
                 <div id="trendChart" class="trend-chart"></div>
               </section>
             </div>
@@ -200,6 +196,18 @@
           <button id="saveEntry" class="primary-button" type="submit">Save entry</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="analysisDialog" class="analysis-dialog">
+      <div class="modal-heading">
+        <div>
+          <span id="analysisModeChip" class="mode-chip add">Analysis</span>
+          <h3 id="analysisTitle">Cost analysis</h3>
+          <p id="analysisSubtitle">Detailed statistics for the selected range.</p>
+        </div>
+        <button id="closeAnalysisDialog" class="icon-button" type="button" aria-label="Close analysis">x</button>
+      </div>
+      <div id="analysisDialogBody" class="analysis-dialog-body"></div>
     </dialog>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>

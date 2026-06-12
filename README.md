@@ -14,8 +14,9 @@ A clean browser app for tracking daily costs, earnings, and savings. The app is 
 - Supports light and dark mode.
 - Changes the month banner design for seasonal months such as March, September, and December.
 - Supports month navigation, date filters, type filters, and category filters.
-- Gives richer statistics with separate cost analysis, profit analysis, cash-flow analysis, and rule-based recommendation views.
-- Shows seasonal month banners with lightweight animated effects.
+- Gives general statistics with a category pie chart, top category values, KPI cards, and recommendations.
+- Opens detailed cost analysis and profit analysis in separate windows.
+- Shows seasonal month banners with lightweight animated effects, including summer sun movement and rainy months.
 - Saves data in the browser using `localStorage`.
 - Exports JSON backups and CSV transaction files.
 - Imports JSON backups when moving to another browser or computer.
