@@ -8,6 +8,11 @@ A clean browser app for tracking daily costs, earnings, and savings. The app is 
 - Uses categories such as accommodation, transport, internet, food, restaurant, entertainment, travel, and other.
 - Shows monthly total costs, total earnings, and monthly savings.
 - Shows current all-time savings in the left sidebar.
+- Lets a finished month be submitted as a monthly report.
+- Locks submitted months so their transactions cannot be added, edited, or deleted.
+- Uses a dialog window for add and edit actions.
+- Supports light and dark mode.
+- Changes the month banner design for seasonal months such as March, September, and December.
 - Supports month navigation, date filters, type filters, and category filters.
 - Gives statistics with daily activity, category spending, and savings trend charts.
 - Saves data in the browser using `localStorage`.

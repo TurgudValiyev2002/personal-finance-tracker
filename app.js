@@ -1,4 +1,6 @@
-const STORAGE_KEY = "personal-finance-tracker-v1";
+const ENTRIES_KEY = "personal-finance-tracker-v1";
+const REPORTS_KEY = "personal-finance-tracker-reports-v1";
+const PREFS_KEY = "personal-finance-tracker-prefs-v1";
 
 const costCategories = [
   "Accommodation",
@@ -22,8 +24,23 @@ const earningCategories = [
   "Other"
 ];
 
+const monthProfiles = {
+  12: ["theme-december", "Christmas and New Year close", "Close the year carefully and keep the December report clean."],
+  3: ["theme-march", "Novruz and spring reset", "A fresh month for checking habits and planning better savings."],
+  9: ["theme-september", "Autumn planning", "September is a good month to compare routine spending and study costs."]
+};
+
+const seasonProfiles = {
+  winter: ["theme-winter", "Winter budget", "Track fixed costs and avoid hidden small expenses."],
+  spring: ["theme-spring", "Spring review", "Use this month to refresh spending habits."],
+  summer: ["theme-summer", "Summer focus", "Watch travel, food, and entertainment spending carefully."],
+  autumn: ["theme-autumn", "Autumn planning", "Good month for routine budget discipline."]
+};
+
 const state = {
   entries: loadEntries(),
+  reports: loadReports(),
+  prefs: loadPrefs(),
   activeView: "dashboard",
   selectedMonth: monthKey(new Date())
 };
@@ -31,12 +48,28 @@ const state = {
 const els = {
   navItems: document.querySelectorAll(".nav-item"),
   pageTitle: document.getElementById("pageTitle"),
+  monthSubtitle: document.getElementById("monthSubtitle"),
   monthInput: document.getElementById("monthInput"),
   prevMonth: document.getElementById("prevMonth"),
   nextMonth: document.getElementById("nextMonth"),
+  themeToggle: document.getElementById("themeToggle"),
+  monthHero: document.getElementById("monthHero"),
+  monthHeroTitle: document.getElementById("monthHeroTitle"),
+  monthHeroText: document.getElementById("monthHeroText"),
+  monthThemeLabel: document.getElementById("monthThemeLabel"),
+  reportStatus: document.getElementById("reportStatus"),
+  reportHelp: document.getElementById("reportHelp"),
+  submitMonth: document.getElementById("submitMonth"),
+  openAddEntry: document.getElementById("openAddEntry"),
+  lockNotice: document.getElementById("lockNotice"),
+  entryDialog: document.getElementById("entryDialog"),
   entryForm: document.getElementById("entryForm"),
+  closeDialog: document.getElementById("closeDialog"),
+  saveEntry: document.getElementById("saveEntry"),
   editingId: document.getElementById("editingId"),
   formTitle: document.getElementById("formTitle"),
+  modalModeChip: document.getElementById("modalModeChip"),
+  modalSubtitle: document.getElementById("modalSubtitle"),
   cancelEdit: document.getElementById("cancelEdit"),
   entryDate: document.getElementById("entryDate"),
   amount: document.getElementById("amount"),
@@ -55,8 +88,6 @@ const els = {
   quickTypeFilter: document.getElementById("quickTypeFilter"),
   dailyList: document.getElementById("dailyList"),
   dailyChart: document.getElementById("dailyChart"),
-  categoryChart: document.getElementById("categoryChart"),
-  trendChart: document.getElementById("trendChart"),
   filterType: document.getElementById("filterType"),
   filterCategory: document.getElementById("filterCategory"),
   filterFrom: document.getElementById("filterFrom"),
@@ -64,6 +95,9 @@ const els = {
   clearFilters: document.getElementById("clearFilters"),
   transactionTable: document.getElementById("transactionTable"),
   statsRange: document.getElementById("statsRange"),
+  insightGrid: document.getElementById("insightGrid"),
+  categoryChart: document.getElementById("categoryChart"),
+  trendChart: document.getElementById("trendChart"),
   categoryBreakdown: document.getElementById("categoryBreakdown"),
   exportJson: document.getElementById("exportJson"),
   exportCsv: document.getElementById("exportCsv"),
@@ -73,11 +107,43 @@ const els = {
 
 function loadEntries() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    const parsed = JSON.parse(localStorage.getItem(ENTRIES_KEY) || "[]");
     return Array.isArray(parsed) ? parsed.filter(isValidEntry) : [];
   } catch {
     return [];
   }
+}
+
+function loadReports() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(REPORTS_KEY) || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function loadPrefs() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}");
+    return {
+      theme: parsed.theme === "dark" ? "dark" : "light"
+    };
+  } catch {
+    return { theme: "light" };
+  }
+}
+
+function saveEntries() {
+  localStorage.setItem(ENTRIES_KEY, JSON.stringify(state.entries));
+}
+
+function saveReports() {
+  localStorage.setItem(REPORTS_KEY, JSON.stringify(state.reports));
+}
+
+function savePrefs() {
+  localStorage.setItem(PREFS_KEY, JSON.stringify(state.prefs));
 }
 
 function isValidEntry(entry) {
@@ -85,14 +151,11 @@ function isValidEntry(entry) {
     && typeof entry.id === "string"
     && ["cost", "earning"].includes(entry.type)
     && typeof entry.date === "string"
+    && /^\d{4}-\d{2}-\d{2}$/.test(entry.date)
     && Number.isFinite(Number(entry.amount))
     && Number(entry.amount) > 0
     && typeof entry.category === "string"
     && typeof entry.description === "string";
-}
-
-function saveEntries() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.entries));
 }
 
 function money(value) {
@@ -126,17 +189,9 @@ function categoriesForType(type) {
 function populateCategorySelect(select, categories, includeAll = false) {
   select.innerHTML = "";
   if (includeAll) {
-    const allOption = document.createElement("option");
-    allOption.value = "all";
-    allOption.textContent = "All categories";
-    select.appendChild(allOption);
+    select.appendChild(new Option("All categories", "all"));
   }
-  categories.forEach((category) => {
-    const option = document.createElement("option");
-    option.value = category;
-    option.textContent = category;
-    select.appendChild(option);
-  });
+  categories.forEach((category) => select.appendChild(new Option(category, category)));
 }
 
 function setEntryType(type) {
@@ -157,17 +212,22 @@ function monthBounds(month) {
   };
 }
 
+function monthName(month) {
+  const [year, m] = month.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(new Date(year, m - 1, 1));
+}
+
+function monthIndex(month) {
+  return Number(month.split("-")[1]);
+}
+
 function entriesInMonth(month = state.selectedMonth) {
   return state.entries.filter((entry) => entry.date.startsWith(month));
 }
 
 function summarize(entries) {
-  const costs = entries
-    .filter((entry) => entry.type === "cost")
-    .reduce((sum, entry) => sum + Number(entry.amount), 0);
-  const earnings = entries
-    .filter((entry) => entry.type === "earning")
-    .reduce((sum, entry) => sum + Number(entry.amount), 0);
+  const costs = entries.filter((entry) => entry.type === "cost").reduce((sum, entry) => sum + Number(entry.amount), 0);
+  const earnings = entries.filter((entry) => entry.type === "earning").reduce((sum, entry) => sum + Number(entry.amount), 0);
   return {
     costs,
     earnings,
@@ -175,6 +235,82 @@ function summarize(entries) {
     costCount: entries.filter((entry) => entry.type === "cost").length,
     earningCount: entries.filter((entry) => entry.type === "earning").length
   };
+}
+
+function isMonthSubmitted(month) {
+  return Boolean(state.reports[month]?.submittedAt);
+}
+
+function canSubmitMonth(month) {
+  return todayIso() > monthBounds(month).end && !isMonthSubmitted(month);
+}
+
+function applyTheme() {
+  document.body.classList.toggle("dark", state.prefs.theme === "dark");
+  els.themeToggle.textContent = state.prefs.theme === "dark" ? "Light mode" : "Dark mode";
+}
+
+function applyMonthTheme() {
+  const month = monthIndex(state.selectedMonth);
+  const season = month === 12 || month <= 2
+    ? "winter"
+    : month <= 5
+      ? "spring"
+      : month <= 8
+        ? "summer"
+        : "autumn";
+  const profile = monthProfiles[month] || seasonProfiles[season];
+
+  document.body.classList.remove(
+    "theme-december",
+    "theme-march",
+    "theme-september",
+    "theme-winter",
+    "theme-spring",
+    "theme-summer",
+    "theme-autumn"
+  );
+  document.body.classList.add(profile[0]);
+  els.monthThemeLabel.textContent = profile[1];
+  els.monthHeroTitle.textContent = monthName(state.selectedMonth);
+  els.monthHeroText.textContent = profile[2];
+  els.monthSubtitle.textContent = `${monthName(state.selectedMonth)} report`;
+  els.monthHero.classList.add("changed");
+  window.setTimeout(() => els.monthHero.classList.remove("changed"), 220);
+}
+
+function renderReportState() {
+  const submitted = isMonthSubmitted(state.selectedMonth);
+  const canSubmit = canSubmitMonth(state.selectedMonth);
+  const report = state.reports[state.selectedMonth];
+
+  els.reportStatus.className = "report-status";
+  els.submitMonth.disabled = !canSubmit;
+  els.openAddEntry.disabled = submitted;
+
+  if (submitted) {
+    els.reportStatus.classList.add("locked");
+    els.reportStatus.textContent = "Submitted and locked";
+    els.reportHelp.textContent = `Submitted on ${formatDate(report.submittedAt.slice(0, 10))}. Transactions cannot be changed.`;
+    els.submitMonth.textContent = "Report submitted";
+    els.lockNotice.textContent = "This month is locked. Add, edit, and delete actions are disabled.";
+    return;
+  }
+
+  if (canSubmit) {
+    els.reportStatus.classList.add("open");
+    els.reportStatus.textContent = "Ready to submit";
+    els.reportHelp.textContent = "The month has ended. Submit when the transaction list is correct.";
+    els.submitMonth.textContent = "Submit monthly report";
+    els.lockNotice.textContent = "This month can still be changed until you submit the report.";
+    return;
+  }
+
+  els.reportStatus.classList.add("waiting");
+  els.reportStatus.textContent = "Open report";
+  els.reportHelp.textContent = `Submission opens after ${formatDate(monthBounds(state.selectedMonth).end)}.`;
+  els.submitMonth.textContent = "Submit monthly report";
+  els.lockNotice.textContent = "This month is open for changes.";
 }
 
 function renderSummary() {
@@ -203,6 +339,38 @@ function renderSummary() {
     : "No entries yet.";
 }
 
+function renderDailyChart() {
+  const { days } = monthBounds(state.selectedMonth);
+  const daily = Array.from({ length: days }, (_, idx) => ({ day: idx + 1, cost: 0, earning: 0 }));
+  entriesInMonth().forEach((entry) => {
+    const day = Number(entry.date.slice(8, 10)) - 1;
+    if (daily[day]) daily[day][entry.type] += Number(entry.amount);
+  });
+  const max = Math.max(...daily.flatMap((row) => [row.cost, row.earning]), 1);
+  els.dailyChart.innerHTML = `
+    <div class="chart-legend">
+      <span><i class="legend-dot" style="background:var(--red)"></i>Costs</span>
+      <span><i class="legend-dot" style="background:var(--green)"></i>Earnings</span>
+      <span>Peak day: ${money(max)}</span>
+    </div>
+    <div class="chart-days">
+      ${daily.map((row) => {
+        const costHeight = Math.max(2, (row.cost / max) * 145);
+        const earningHeight = Math.max(2, (row.earning / max) * 145);
+        return `
+          <div class="day-bar" title="Day ${row.day}: costs ${money(row.cost)}, earnings ${money(row.earning)}">
+            <div class="day-bar-stack">
+              <div class="bar-earning" style="height:${earningHeight}px"></div>
+              <div class="bar-cost" style="height:${costHeight}px"></div>
+            </div>
+            <span class="bar-label">${row.day}</span>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
 function renderDailyList() {
   const filter = els.quickTypeFilter.value;
   const entries = entriesInMonth()
@@ -222,14 +390,13 @@ function renderDailyList() {
 
   els.dailyList.innerHTML = [...byDay.entries()].map(([date, dayEntries]) => {
     const daySummary = summarize(dayEntries);
-    const rows = dayEntries.map(entryCard).join("");
     return `
       <section class="day-group">
         <div class="day-header">
           <span>${formatDate(date)}</span>
           <span>${money(daySummary.earnings - daySummary.costs)}</span>
         </div>
-        <div class="day-items">${rows}</div>
+        <div class="day-items">${dayEntries.map(entryCard).join("")}</div>
       </section>
     `;
   }).join("");
@@ -275,23 +442,27 @@ function renderTransactions() {
     return;
   }
 
-  els.transactionTable.innerHTML = entries.map((entry) => `
-    <tr>
-      <td>${formatDate(entry.date)}</td>
-      <td><span class="badge ${entry.type}">${entry.type}</span></td>
-      <td>${escapeHtml(entry.category)}</td>
-      <td>${escapeHtml(entry.description)}</td>
-      <td class="amount-col ${entry.type === "earning" ? "amount earning" : "amount cost"}">
-        ${entry.type === "earning" ? "+" : "-"}${money(Number(entry.amount))}
-      </td>
-      <td>
-        <div class="action-buttons">
+  els.transactionTable.innerHTML = entries.map((entry) => {
+    const locked = isMonthSubmitted(monthKey(entry.date));
+    const actions = locked
+      ? `<span class="report-status locked">Locked</span>`
+      : `<div class="action-buttons">
           <button class="tiny-button" type="button" data-action="edit" data-id="${entry.id}">Edit</button>
           <button class="tiny-button delete" type="button" data-action="delete" data-id="${entry.id}">Delete</button>
-        </div>
-      </td>
-    </tr>
-  `).join("");
+        </div>`;
+    return `
+      <tr>
+        <td>${formatDate(entry.date)}</td>
+        <td><span class="badge ${entry.type}">${entry.type}</span></td>
+        <td>${escapeHtml(entry.category)}</td>
+        <td>${escapeHtml(entry.description)}</td>
+        <td class="amount-col ${entry.type === "earning" ? "amount earning" : "amount cost"}">
+          ${entry.type === "earning" ? "+" : "-"}${money(Number(entry.amount))}
+        </td>
+        <td>${actions}</td>
+      </tr>
+    `;
+  }).join("");
 }
 
 function filteredTransactions() {
@@ -299,7 +470,6 @@ function filteredTransactions() {
   const category = els.filterCategory.value;
   const from = els.filterFrom.value;
   const to = els.filterTo.value;
-
   return state.entries.filter((entry) => {
     if (type !== "all" && entry.type !== type) return false;
     if (category !== "all" && entry.category !== category) return false;
@@ -307,13 +477,6 @@ function filteredTransactions() {
     if (to && entry.date > to) return false;
     return true;
   });
-}
-
-function renderStatistics() {
-  const entries = entriesForStatsRange();
-  renderCategoryBreakdown(entries);
-  drawCategoryChart(entries);
-  drawTrendChart(entries);
 }
 
 function entriesForStatsRange() {
@@ -326,24 +489,99 @@ function entriesForStatsRange() {
   return entriesInMonth();
 }
 
-function renderCategoryBreakdown(entries) {
-  const costs = entries.filter((entry) => entry.type === "cost");
-  const total = costs.reduce((sum, entry) => sum + Number(entry.amount), 0);
-  const byCategory = groupSum(costs, "category");
-  const rows = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
+function renderStatistics() {
+  const entries = entriesForStatsRange();
+  const summary = summarize(entries);
+  const costEntries = entries.filter((entry) => entry.type === "cost");
+  const byCategory = groupSum(costEntries, "category");
+  const topCategory = Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0];
+  const byDay = groupSum(costEntries, "date");
+  const topDay = Object.entries(byDay).sort((a, b) => b[1] - a[1])[0];
+  const activeDays = new Set(entries.map((entry) => entry.date)).size || 1;
+  const avgDailyCost = summary.costs / activeDays;
+  const savingsRate = summary.earnings > 0 ? (summary.savings / summary.earnings) * 100 : 0;
 
+  els.insightGrid.innerHTML = `
+    <article class="insight-card"><span>Top cost category</span><strong>${topCategory ? escapeHtml(topCategory[0]) : "None"}</strong><small>${topCategory ? money(topCategory[1]) : "No costs yet"}</small></article>
+    <article class="insight-card"><span>Most expensive day</span><strong>${topDay ? formatShortDate(topDay[0]) : "None"}</strong><small>${topDay ? money(topDay[1]) : "No costs yet"}</small></article>
+    <article class="insight-card"><span>Average active-day cost</span><strong>${money(avgDailyCost)}</strong><small>${activeDays} active day${activeDays === 1 ? "" : "s"}</small></article>
+    <article class="insight-card"><span>Savings rate</span><strong>${Math.round(savingsRate)}%</strong><small>${money(summary.savings)} net balance</small></article>
+  `;
+
+  renderCategoryChart(byCategory);
+  renderTrendChart(entries);
+  renderCategoryBreakdown(byCategory, summary.costs);
+}
+
+function formatShortDate(date) {
+  return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" }).format(new Date(`${date}T00:00:00`));
+}
+
+function renderCategoryChart(byCategory) {
+  const rows = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const max = Math.max(...rows.map((row) => row[1]), 1);
   if (!rows.length) {
-    els.categoryBreakdown.innerHTML = `<p class="empty-state">No cost categories for this range.</p>`;
+    els.categoryChart.innerHTML = `<p class="empty-state">No cost data for this range.</p>`;
     return;
   }
+  els.categoryChart.innerHTML = rows.map(([category, value]) => `
+    <div class="rank-row">
+      <strong>${escapeHtml(category)}</strong>
+      <div class="rank-track"><div class="rank-fill" style="width:${(value / max) * 100}%"></div></div>
+      <span>${money(value)}</span>
+    </div>
+  `).join("");
+}
 
+function renderTrendChart(entries) {
+  const rows = monthlyRows(entries);
+  const max = Math.max(...rows.flatMap((row) => [row.costs, row.earnings]), 1);
+  if (!rows.length) {
+    els.trendChart.innerHTML = `<p class="empty-state">No cash flow data for this range.</p>`;
+    return;
+  }
+  els.trendChart.innerHTML = `
+    <div class="chart-legend">
+      <span><i class="legend-dot" style="background:var(--green)"></i>Earnings</span>
+      <span><i class="legend-dot" style="background:var(--red)"></i>Costs</span>
+    </div>
+    <div class="trend-bars">
+      ${rows.map((row) => `
+        <div class="trend-item" title="${row.label}: earnings ${money(row.earnings)}, costs ${money(row.costs)}">
+          <div class="trend-pair">
+            <div class="trend-income" style="height:${Math.max(3, (row.earnings / max) * 185)}px"></div>
+            <div class="trend-cost" style="height:${Math.max(3, (row.costs / max) * 185)}px"></div>
+          </div>
+          <span class="trend-label">${row.short}</span>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function monthlyRows(entries) {
+  const byMonth = new Map();
+  entries.forEach((entry) => {
+    const key = entry.date.slice(0, 7);
+    if (!byMonth.has(key)) byMonth.set(key, { key, label: monthName(key), short: key.slice(5), costs: 0, earnings: 0 });
+    byMonth.get(key)[entry.type === "earning" ? "earnings" : "costs"] += Number(entry.amount);
+  });
+  return [...byMonth.values()].sort((a, b) => a.key.localeCompare(b.key));
+}
+
+function renderCategoryBreakdown(byCategory, total) {
+  const rows = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
+  if (!rows.length) {
+    els.categoryBreakdown.innerHTML = "";
+    return;
+  }
   els.categoryBreakdown.innerHTML = rows.map(([category, value]) => {
     const percent = total > 0 ? (value / total) * 100 : 0;
     return `
       <div class="breakdown-row">
         <strong>${escapeHtml(category)}</strong>
         <div class="breakdown-track"><div class="breakdown-fill" style="width:${percent}%"></div></div>
-        <span>${money(value)}</span>
+        <span>${Math.round(percent)}% (${money(value)})</span>
       </div>
     `;
   }).join("");
@@ -356,215 +594,15 @@ function groupSum(entries, key) {
   }, {});
 }
 
-function drawDailyChart() {
-  const canvas = els.dailyChart;
-  const ctx = scaledContext(canvas);
-  const { days } = monthBounds(state.selectedMonth);
-  const daily = Array.from({ length: days }, (_, idx) => ({
-    label: String(idx + 1),
-    cost: 0,
-    earning: 0
-  }));
-
-  entriesInMonth().forEach((entry) => {
-    const day = Number(entry.date.slice(8, 10)) - 1;
-    if (daily[day]) daily[day][entry.type] += Number(entry.amount);
-  });
-
-  drawGroupedBars(ctx, canvas, daily, {
-    leftKey: "cost",
-    rightKey: "earning",
-    title: "Daily costs and earnings",
-    leftColor: "#c24133",
-    rightColor: "#128a57",
-    leftLabel: "Costs",
-    rightLabel: "Earnings"
-  });
-}
-
-function drawCategoryChart(entries) {
-  const canvas = els.categoryChart;
-  const ctx = scaledContext(canvas);
-  const byCategory = groupSum(entries.filter((entry) => entry.type === "cost"), "category");
-  const rows = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 8)
-    .map(([label, value]) => ({ label, value }));
-  drawHorizontalBars(ctx, canvas, rows, "Cost by category", "#0f766e");
-}
-
-function drawTrendChart(entries) {
-  const canvas = els.trendChart;
-  const ctx = scaledContext(canvas);
-  const byMonth = new Map();
-  entries.forEach((entry) => {
-    const key = entry.date.slice(0, 7);
-    if (!byMonth.has(key)) byMonth.set(key, { label: key, savings: 0 });
-    byMonth.get(key).savings += entry.type === "earning" ? Number(entry.amount) : -Number(entry.amount);
-  });
-  const rows = [...byMonth.values()].sort((a, b) => a.label.localeCompare(b.label));
-  drawLineChart(ctx, canvas, rows, "Savings trend", "#0f766e");
-}
-
-function scaledContext(canvas) {
-  const ratio = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = Math.max(1, Math.floor(rect.width * ratio));
-  canvas.height = Math.max(1, Math.floor(rect.height * ratio));
-  const ctx = canvas.getContext("2d");
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-  return ctx;
-}
-
-function clearCanvas(ctx, canvas) {
-  const rect = canvas.getBoundingClientRect();
-  ctx.clearRect(0, 0, rect.width, rect.height);
-  ctx.fillStyle = "#fbfdfc";
-  ctx.fillRect(0, 0, rect.width, rect.height);
-  return rect;
-}
-
-function drawGroupedBars(ctx, canvas, rows, config) {
-  const rect = clearCanvas(ctx, canvas);
-  const pad = { top: 38, right: 18, bottom: 34, left: 48 };
-  const chartW = rect.width - pad.left - pad.right;
-  const chartH = rect.height - pad.top - pad.bottom;
-  const max = Math.max(...rows.flatMap((r) => [r[config.leftKey], r[config.rightKey]]), 1);
-
-  drawTitle(ctx, config.title, pad.left, 22);
-  drawLegend(ctx, rect.width - 190, 16, [
-    [config.leftColor, config.leftLabel],
-    [config.rightColor, config.rightLabel]
-  ]);
-  drawAxis(ctx, pad, rect, max);
-
-  const groupW = chartW / rows.length;
-  const barW = Math.max(2, Math.min(10, groupW * 0.28));
-  rows.forEach((row, idx) => {
-    const x = pad.left + idx * groupW + groupW / 2;
-    const costH = (row[config.leftKey] / max) * chartH;
-    const earningH = (row[config.rightKey] / max) * chartH;
-    ctx.fillStyle = config.leftColor;
-    ctx.fillRect(x - barW - 1, pad.top + chartH - costH, barW, costH);
-    ctx.fillStyle = config.rightColor;
-    ctx.fillRect(x + 1, pad.top + chartH - earningH, barW, earningH);
-    if (rows.length <= 16 || idx % 2 === 0) drawSmallText(ctx, row.label, x - 4, rect.height - 13);
-  });
-}
-
-function drawHorizontalBars(ctx, canvas, rows, title, color) {
-  const rect = clearCanvas(ctx, canvas);
-  drawTitle(ctx, title, 16, 24);
-
-  if (!rows.length) {
-    drawEmpty(ctx, rect, "No category data yet.");
-    return;
-  }
-
-  const max = Math.max(...rows.map((r) => r.value), 1);
-  const startY = 52;
-  const rowH = Math.min(34, (rect.height - startY - 10) / rows.length);
-  rows.forEach((row, idx) => {
-    const y = startY + idx * rowH;
-    const w = ((rect.width - 190) * row.value) / max;
-    drawSmallText(ctx, truncate(row.label, 16), 16, y + 19);
-    ctx.fillStyle = "#e8f1ef";
-    ctx.fillRect(138, y + 5, rect.width - 185, 13);
-    ctx.fillStyle = color;
-    ctx.fillRect(138, y + 5, w, 13);
-    drawSmallText(ctx, money(row.value), rect.width - 70, y + 19);
-  });
-}
-
-function drawLineChart(ctx, canvas, rows, title, color) {
-  const rect = clearCanvas(ctx, canvas);
-  const pad = { top: 44, right: 20, bottom: 36, left: 54 };
-  const chartW = rect.width - pad.left - pad.right;
-  const chartH = rect.height - pad.top - pad.bottom;
-  drawTitle(ctx, title, 16, 24);
-
-  if (!rows.length) {
-    drawEmpty(ctx, rect, "No savings trend yet.");
-    return;
-  }
-
-  const values = rows.map((row) => row.savings);
-  const min = Math.min(...values, 0);
-  const max = Math.max(...values, 1);
-  const span = max - min || 1;
-  drawAxis(ctx, pad, rect, max, min);
-
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  rows.forEach((row, idx) => {
-    const x = rows.length === 1 ? pad.left + chartW / 2 : pad.left + (idx / (rows.length - 1)) * chartW;
-    const y = pad.top + chartH - ((row.savings - min) / span) * chartH;
-    if (idx === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-
-  ctx.fillStyle = color;
-  rows.forEach((row, idx) => {
-    const x = rows.length === 1 ? pad.left + chartW / 2 : pad.left + (idx / (rows.length - 1)) * chartW;
-    const y = pad.top + chartH - ((row.savings - min) / span) * chartH;
-    ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
-    ctx.fill();
-    drawSmallText(ctx, row.label.slice(5), x - 8, rect.height - 13);
-  });
-}
-
-function drawTitle(ctx, title, x, y) {
-  ctx.fillStyle = "#13201f";
-  ctx.font = "700 15px system-ui, sans-serif";
-  ctx.fillText(title, x, y);
-}
-
-function drawSmallText(ctx, text, x, y) {
-  ctx.fillStyle = "#667471";
-  ctx.font = "12px system-ui, sans-serif";
-  ctx.fillText(text, x, y);
-}
-
-function drawLegend(ctx, x, y, items) {
-  items.forEach(([color, label], idx) => {
-    const offset = idx * 84;
-    ctx.fillStyle = color;
-    ctx.fillRect(x + offset, y, 10, 10);
-    drawSmallText(ctx, label, x + offset + 14, y + 10);
-  });
-}
-
-function drawAxis(ctx, pad, rect, max, min = 0) {
-  const chartH = rect.height - pad.top - pad.bottom;
-  const chartW = rect.width - pad.left - pad.right;
-  ctx.strokeStyle = "#dbe4e2";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(pad.left, pad.top);
-  ctx.lineTo(pad.left, pad.top + chartH);
-  ctx.lineTo(pad.left + chartW, pad.top + chartH);
-  ctx.stroke();
-  drawSmallText(ctx, money(max), 8, pad.top + 4);
-  if (min < 0) drawSmallText(ctx, money(min), 8, pad.top + chartH);
-}
-
-function drawEmpty(ctx, rect, message) {
-  ctx.fillStyle = "#667471";
-  ctx.font = "14px system-ui, sans-serif";
-  ctx.fillText(message, 18, rect.height / 2);
-}
-
-function truncate(text, length) {
-  return text.length > length ? `${text.slice(0, length - 1)}…` : text;
-}
-
 function renderAll() {
+  applyTheme();
+  applyMonthTheme();
+  renderReportState();
   renderSummary();
+  renderDailyChart();
   renderDailyList();
   renderTransactions();
   renderStatistics();
-  drawDailyChart();
 }
 
 function switchView(view) {
@@ -580,6 +618,55 @@ function switchView(view) {
     backup: "Backup"
   }[view];
   renderAll();
+}
+
+function openEntryDialog(mode, entry = null) {
+  if (mode === "add" && isMonthSubmitted(state.selectedMonth)) {
+    showToast("This month is submitted and locked.");
+    return;
+  }
+
+  if (entry && isMonthSubmitted(monthKey(entry.date))) {
+    showToast("This entry belongs to a submitted month.");
+    return;
+  }
+
+  resetForm(entry);
+  els.entryDialog.classList.toggle("add-mode", mode === "add");
+  els.entryDialog.classList.toggle("edit-mode", mode === "edit");
+  els.modalModeChip.className = `mode-chip ${mode}`;
+  els.modalModeChip.textContent = mode === "edit" ? "Edit mode" : "Add mode";
+  els.formTitle.textContent = mode === "edit" ? "Edit entry" : "Add entry";
+  els.modalSubtitle.textContent = mode === "edit"
+    ? "Update this transaction before the monthly report is submitted."
+    : "Create a new cost or earning for the selected month.";
+  els.saveEntry.textContent = mode === "edit" ? "Save changes" : "Save entry";
+  els.entryDialog.showModal();
+}
+
+function resetForm(entry = null) {
+  if (entry) {
+    setEntryType(entry.type);
+    els.editingId.value = entry.id;
+    els.entryDate.value = entry.date;
+    els.amount.value = entry.amount;
+    els.category.value = entry.category;
+    els.description.value = entry.description;
+    return;
+  }
+  els.editingId.value = "";
+  els.entryDate.value = defaultEntryDate();
+  els.amount.value = "";
+  els.description.value = "";
+  setEntryType("cost");
+}
+
+function defaultEntryDate() {
+  return todayIso().startsWith(state.selectedMonth) ? todayIso() : `${state.selectedMonth}-01`;
+}
+
+function closeEntryDialog() {
+  els.entryDialog.close();
 }
 
 function submitEntry(event) {
@@ -600,44 +687,43 @@ function submitEntry(event) {
     return;
   }
 
+  const targetMonth = monthKey(entry.date);
+  if (isMonthSubmitted(targetMonth)) {
+    showToast("That month is already submitted and locked.");
+    return;
+  }
+
   const existingIndex = state.entries.findIndex((item) => item.id === entry.id);
-  if (existingIndex >= 0) state.entries[existingIndex] = entry;
-  else state.entries.push(entry);
+  if (existingIndex >= 0) {
+    const oldMonth = monthKey(state.entries[existingIndex].date);
+    if (isMonthSubmitted(oldMonth)) {
+      showToast("This entry belongs to a submitted month.");
+      return;
+    }
+    state.entries[existingIndex] = entry;
+  } else {
+    state.entries.push(entry);
+  }
 
   saveEntries();
-  resetForm(entry.date);
+  closeEntryDialog();
   renderAll();
   showToast(existingIndex >= 0 ? "Entry updated." : "Entry saved.");
-}
-
-function resetForm(date = `${state.selectedMonth}-01`) {
-  els.editingId.value = "";
-  els.formTitle.textContent = "Add entry";
-  els.cancelEdit.classList.add("hidden");
-  els.entryDate.value = date;
-  els.amount.value = "";
-  els.description.value = "";
-  setEntryType("cost");
 }
 
 function editEntry(id) {
   const entry = state.entries.find((item) => item.id === id);
   if (!entry) return;
-  setEntryType(entry.type);
-  els.editingId.value = entry.id;
-  els.entryDate.value = entry.date;
-  els.amount.value = entry.amount;
-  els.category.value = entry.category;
-  els.description.value = entry.description;
-  els.formTitle.textContent = "Edit entry";
-  els.cancelEdit.classList.remove("hidden");
-  switchView("dashboard");
-  showToast("Editing selected entry.");
+  openEntryDialog("edit", entry);
 }
 
 function deleteEntry(id) {
   const entry = state.entries.find((item) => item.id === id);
   if (!entry) return;
+  if (isMonthSubmitted(monthKey(entry.date))) {
+    showToast("Submitted month transactions cannot be deleted.");
+    return;
+  }
   const ok = confirm(`Delete "${entry.description}" (${money(entry.amount)})?`);
   if (!ok) return;
   state.entries = state.entries.filter((item) => item.id !== id);
@@ -646,19 +732,43 @@ function deleteEntry(id) {
   showToast("Entry deleted.");
 }
 
+function submitMonthlyReport() {
+  if (!canSubmitMonth(state.selectedMonth)) {
+    showToast("This report cannot be submitted yet.");
+    return;
+  }
+  const summary = summarize(entriesInMonth());
+  const ok = confirm(`Submit and lock ${monthName(state.selectedMonth)}?\n\nCosts: ${money(summary.costs)}\nEarnings: ${money(summary.earnings)}\nSavings: ${money(summary.savings)}`);
+  if (!ok) return;
+  state.reports[state.selectedMonth] = {
+    submittedAt: new Date().toISOString(),
+    summary
+  };
+  saveReports();
+  renderAll();
+  showToast("Monthly report submitted and locked.");
+}
+
 function exportJson() {
   downloadFile(
     `finance-backup-${new Date().toISOString().slice(0, 10)}.json`,
-    JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), entries: state.entries }, null, 2),
+    JSON.stringify({
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      entries: state.entries,
+      reports: state.reports
+    }, null, 2),
     "application/json"
   );
 }
 
 function exportCsv() {
-  const header = ["date", "type", "category", "description", "amount"];
+  const header = ["date", "type", "category", "description", "amount", "monthSubmitted"];
   const rows = state.entries
+    .slice()
     .sort((a, b) => a.date.localeCompare(b.date))
-    .map((entry) => header.map((key) => csvCell(entry[key])).join(","));
+    .map((entry) => [entry.date, entry.type, entry.category, entry.description, entry.amount, isMonthSubmitted(monthKey(entry.date))]
+      .map(csvCell).join(","));
   downloadFile(
     `finance-transactions-${new Date().toISOString().slice(0, 10)}.csv`,
     [header.join(","), ...rows].join("\n"),
@@ -690,9 +800,10 @@ function importJson(file) {
       const imported = Array.isArray(parsed) ? parsed : parsed.entries;
       if (!Array.isArray(imported)) throw new Error("Invalid backup");
       const clean = imported.filter(isValidEntry);
-      if (!clean.length && imported.length) throw new Error("No valid entries");
       state.entries = clean;
+      state.reports = parsed.reports && typeof parsed.reports === "object" ? parsed.reports : {};
       saveEntries();
+      saveReports();
       renderAll();
       showToast(`Imported ${clean.length} entries.`);
     } catch {
@@ -708,25 +819,30 @@ function showToast(message) {
   els.toast.textContent = message;
   els.toast.classList.add("show");
   clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => els.toast.classList.remove("show"), 2200);
+  showToast.timer = setTimeout(() => els.toast.classList.remove("show"), 2300);
 }
 
 function bindEvents() {
-  els.navItems.forEach((item) => {
-    item.addEventListener("click", () => switchView(item.dataset.view));
-  });
+  els.navItems.forEach((item) => item.addEventListener("click", () => switchView(item.dataset.view)));
   els.monthInput.addEventListener("change", () => {
     state.selectedMonth = els.monthInput.value || monthKey(new Date());
-    resetForm(`${state.selectedMonth}-01`);
     renderAll();
   });
   els.prevMonth.addEventListener("click", () => shiftMonth(-1));
   els.nextMonth.addEventListener("click", () => shiftMonth(1));
+  els.themeToggle.addEventListener("click", () => {
+    state.prefs.theme = state.prefs.theme === "dark" ? "light" : "dark";
+    savePrefs();
+    renderAll();
+  });
+  els.openAddEntry.addEventListener("click", () => openEntryDialog("add"));
+  els.submitMonth.addEventListener("click", submitMonthlyReport);
   els.typeRadios.forEach((radio) => {
     radio.addEventListener("change", () => populateCategorySelect(els.category, categoriesForType(selectedType())));
   });
   els.entryForm.addEventListener("submit", submitEntry);
-  els.cancelEdit.addEventListener("click", () => resetForm(els.entryDate.value || todayIso()));
+  els.closeDialog.addEventListener("click", closeEntryDialog);
+  els.cancelEdit.addEventListener("click", closeEntryDialog);
   els.quickTypeFilter.addEventListener("change", renderDailyList);
   els.filterType.addEventListener("change", renderTransactions);
   els.filterCategory.addEventListener("change", renderTransactions);
@@ -738,15 +854,12 @@ function bindEvents() {
   els.exportJson.addEventListener("click", exportJson);
   els.exportCsv.addEventListener("click", exportCsv);
   els.importJson.addEventListener("change", (event) => importJson(event.target.files[0]));
-  window.addEventListener("resize", debounce(renderAll, 160));
 }
 
 function shiftMonth(delta) {
   const [year, month] = state.selectedMonth.split("-").map(Number);
-  const date = new Date(year, month - 1 + delta, 1);
-  state.selectedMonth = monthKey(date);
+  state.selectedMonth = monthKey(new Date(year, month - 1 + delta, 1));
   els.monthInput.value = state.selectedMonth;
-  resetForm(`${state.selectedMonth}-01`);
   renderAll();
 }
 
@@ -765,17 +878,8 @@ function handleTableAction(event) {
   if (button.dataset.action === "delete") deleteEntry(button.dataset.id);
 }
 
-function debounce(fn, delay) {
-  let timer;
-  return (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), delay);
-  };
-}
-
 function init() {
   els.monthInput.value = state.selectedMonth;
-  els.entryDate.value = todayIso();
   populateCategorySelect(els.category, costCategories);
   populateCategorySelect(els.filterCategory, [...new Set([...costCategories, ...earningCategories])], true);
   bindEvents();
