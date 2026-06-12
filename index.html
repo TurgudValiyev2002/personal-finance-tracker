@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0f766e">
+    <title>Personal Finance Tracker</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Finance navigation">
+        <div class="brand">
+          <div class="brand-mark">F</div>
+          <div>
+            <h1>Finance Tracker</h1>
+            <p>Costs, earnings, savings</p>
+          </div>
+        </div>
+
+        <nav class="nav-stack">
+          <button class="nav-item active" data-view="dashboard" type="button">
+            <span>Overview</span>
+          </button>
+          <button class="nav-item" data-view="transactions" type="button">
+            <span>Transactions</span>
+          </button>
+          <button class="nav-item" data-view="statistics" type="button">
+            <span>Statistics</span>
+          </button>
+          <button class="nav-item" data-view="backup" type="button">
+            <span>Backup</span>
+          </button>
+        </nav>
+
+        <section class="savings-panel" aria-label="Current savings">
+          <div class="panel-row">
+            <span>Current Savings</span>
+            <strong id="sidebarSavings">€0.00</strong>
+          </div>
+          <div class="savings-bar" aria-hidden="true">
+            <div id="savingsBarFill"></div>
+          </div>
+          <p id="savingsHint">No entries yet.</p>
+        </section>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Personal money dashboard</p>
+            <h2 id="pageTitle">Overview</h2>
+          </div>
+          <div class="month-switcher" aria-label="Month selector">
+            <button id="prevMonth" class="icon-button" type="button" aria-label="Previous month">‹</button>
+            <input id="monthInput" type="month" aria-label="Selected month">
+            <button id="nextMonth" class="icon-button" type="button" aria-label="Next month">›</button>
+          </div>
+        </header>
+
+        <section class="summary-grid" aria-label="Monthly summary">
+          <article class="metric-card cost">
+            <span>Total Costs</span>
+            <strong id="monthCosts">€0.00</strong>
+            <small id="costCount">0 cost entries</small>
+          </article>
+          <article class="metric-card earning">
+            <span>Total Earnings</span>
+            <strong id="monthEarnings">€0.00</strong>
+            <small id="earningCount">0 earning entries</small>
+          </article>
+          <article class="metric-card savings">
+            <span>Monthly Savings</span>
+            <strong id="monthSavings">€0.00</strong>
+            <small id="savingsRate">0% of earnings saved</small>
+          </article>
+        </section>
+
+        <section class="workspace-grid">
+          <article class="entry-panel">
+            <div class="section-heading">
+              <h3 id="formTitle">Add entry</h3>
+              <button id="cancelEdit" class="ghost-button hidden" type="button">Cancel edit</button>
+            </div>
+
+            <form id="entryForm" autocomplete="off">
+              <input id="editingId" type="hidden">
+              <div class="type-toggle" role="radiogroup" aria-label="Entry type">
+                <label>
+                  <input type="radio" name="type" value="cost" checked>
+                  <span>Cost</span>
+                </label>
+                <label>
+                  <input type="radio" name="type" value="earning">
+                  <span>Earning</span>
+                </label>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  <span>Date</span>
+                  <input id="entryDate" type="date" required>
+                </label>
+                <label>
+                  <span>Amount</span>
+                  <input id="amount" type="number" step="0.01" min="0.01" placeholder="20.00" required>
+                </label>
+              </div>
+
+              <label>
+                <span>Category</span>
+                <select id="category" required></select>
+              </label>
+
+              <label>
+                <span>Description</span>
+                <input id="description" type="text" maxlength="120" placeholder="Food, hostel, salary, ticket..." required>
+              </label>
+
+              <button class="primary-button" type="submit">Save entry</button>
+            </form>
+          </article>
+
+          <article class="content-panel" data-panel="dashboard">
+            <div class="section-heading">
+              <h3>Month activity</h3>
+              <div class="mini-filter">
+                <select id="quickTypeFilter" aria-label="Quick type filter">
+                  <option value="all">All</option>
+                  <option value="cost">Costs</option>
+                  <option value="earning">Earnings</option>
+                </select>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="dailyChart" width="900" height="320" aria-label="Daily costs and earnings chart"></canvas>
+            </div>
+            <div id="dailyList" class="daily-list"></div>
+          </article>
+
+          <article class="content-panel hidden" data-panel="transactions">
+            <div class="section-heading">
+              <h3>Transaction list</h3>
+              <button id="clearFilters" class="ghost-button" type="button">Clear filters</button>
+            </div>
+            <div class="filter-grid">
+              <label>
+                <span>Type</span>
+                <select id="filterType">
+                  <option value="all">All</option>
+                  <option value="cost">Costs</option>
+                  <option value="earning">Earnings</option>
+                </select>
+              </label>
+              <label>
+                <span>Category</span>
+                <select id="filterCategory"></select>
+              </label>
+              <label>
+                <span>From</span>
+                <input id="filterFrom" type="date">
+              </label>
+              <label>
+                <span>To</span>
+                <input id="filterTo" type="date">
+              </label>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th class="amount-col">Amount</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="transactionTable"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="content-panel hidden" data-panel="statistics">
+            <div class="section-heading">
+              <h3>Statistics</h3>
+              <select id="statsRange" aria-label="Statistics range">
+                <option value="month">Selected month</option>
+                <option value="year">Selected year</option>
+                <option value="all">All time</option>
+              </select>
+            </div>
+            <div class="stats-layout">
+              <div class="chart-wrap">
+                <canvas id="categoryChart" width="620" height="340" aria-label="Cost by category chart"></canvas>
+              </div>
+              <div class="chart-wrap">
+                <canvas id="trendChart" width="620" height="340" aria-label="Savings trend chart"></canvas>
+              </div>
+            </div>
+            <div id="categoryBreakdown" class="breakdown-list"></div>
+          </article>
+
+          <article class="content-panel hidden" data-panel="backup">
+            <div class="section-heading">
+              <h3>Backup and restore</h3>
+            </div>
+            <div class="backup-grid">
+              <button id="exportJson" class="secondary-button" type="button">Export JSON backup</button>
+              <button id="exportCsv" class="secondary-button" type="button">Export CSV</button>
+              <label class="file-import">
+                <span>Import JSON backup</span>
+                <input id="importJson" type="file" accept="application/json">
+              </label>
+            </div>
+            <p class="backup-note">
+              Data is saved only in this browser. Export a JSON backup regularly if this is important financial data.
+            </p>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

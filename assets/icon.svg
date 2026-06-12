@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Finance tracker icon">
+  <rect width="128" height="128" rx="20" fill="#0f766e"/>
+  <path d="M28 90V34h72v14H45v11h45v14H45v17H28z" fill="#ffffff"/>
+  <path d="M76 82c10 0 18-8 18-18S86 46 76 46s-18 8-18 18 8 18 18 18z" fill="#22c55e"/>
+  <path d="M75 73c-5 0-9-3-10-7h7c1 1 2 2 4 2 3 0 4-1 4-3 0-5-14-1-14-11 0-5 4-9 10-9 5 0 9 3 10 7h-7c-1-1-2-2-4-2-2 0-4 1-4 3 0 5 14 1 14 11 0 5-4 9-10 9z" fill="#102320"/>
+</svg>
