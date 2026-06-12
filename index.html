@@ -54,6 +54,7 @@
         </header>
 
         <section id="monthHero" class="month-hero" aria-label="Selected month identity">
+          <div id="seasonScene" class="season-scene" aria-hidden="true"></div>
           <div>
             <span id="monthThemeLabel" class="theme-chip">Summer focus</span>
             <h3 id="monthHeroTitle">June 2026</h3>
@@ -132,24 +133,32 @@
           <article class="content-panel hidden" data-panel="statistics">
             <div class="section-heading">
               <h3>Statistics</h3>
-              <select id="statsRange" aria-label="Statistics range">
-                <option value="month">Selected month</option>
-                <option value="year">Selected year</option>
-                <option value="all">All time</option>
-              </select>
+              <div class="stats-controls">
+                <select id="analysisType" aria-label="Analysis type">
+                  <option value="cost">Cost analysis</option>
+                  <option value="profit">Profit analysis</option>
+                  <option value="cashflow">Cash flow analysis</option>
+                  <option value="recommendations">AI recommendations</option>
+                </select>
+                <select id="statsRange" aria-label="Statistics range">
+                  <option value="month">Selected month</option>
+                  <option value="year">Selected year</option>
+                  <option value="all">All time</option>
+                </select>
+              </div>
             </div>
             <div id="insightGrid" class="insight-grid"></div>
             <div class="stats-layout">
               <section>
-                <h4>Where the money went</h4>
+                <h4 id="primaryChartTitle">Where the money went</h4>
                 <div id="categoryChart" class="rank-chart"></div>
               </section>
               <section>
-                <h4>Cash flow by month</h4>
+                <h4 id="secondaryChartTitle">Cash flow by month</h4>
                 <div id="trendChart" class="trend-chart"></div>
               </section>
             </div>
-            <div id="categoryBreakdown" class="breakdown-list"></div>
+            <div id="extraStats" class="extra-stats"></div>
           </article>
 
           <article class="content-panel hidden" data-panel="backup">
