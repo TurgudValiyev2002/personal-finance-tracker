@@ -23,6 +23,7 @@
           <button class="nav-item active" data-view="dashboard" type="button"><span class="nav-icon">O</span> Overview</button>
           <button class="nav-item" data-view="transactions" type="button"><span class="nav-icon">T</span> Transactions</button>
           <button class="nav-item" data-view="statistics" type="button"><span class="nav-icon">S</span> Statistics</button>
+          <button class="nav-item" data-view="advisor" type="button"><span class="nav-icon">A</span> AI Advisor</button>
           <button class="nav-item" data-view="backup" type="button"><span class="nav-icon">B</span> Backup</button>
         </nav>
 
@@ -155,6 +156,68 @@
               </section>
             </div>
             <div id="extraStats" class="extra-stats"></div>
+          </article>
+
+          <article class="content-panel hidden" data-panel="advisor">
+            <div class="section-heading">
+              <div>
+                <h3>Personalized AI Advisor</h3>
+                <p class="section-note">Ask about your own costs, earnings, savings, categories, dates, and descriptions.</p>
+              </div>
+              <span id="advisorMode" class="report-status waiting">Local fallback ready</span>
+            </div>
+
+            <div class="advisor-grid">
+              <section class="advisor-card">
+                <h4>Question</h4>
+                <div class="question-presets" aria-label="Common finance questions">
+                  <button class="tiny-button preset-question" type="button">How can I increase my savings?</button>
+                  <button class="tiny-button preset-question" type="button">Where can I reduce my costs?</button>
+                  <button class="tiny-button preset-question" type="button">Which category is hurting my savings most?</button>
+                  <button class="tiny-button preset-question" type="button">What changed compared with other months?</button>
+                  <button class="tiny-button preset-question" type="button">How can I plan next month better?</button>
+                </div>
+                <label>
+                  <span>Your question</span>
+                  <textarea id="advisorQuestion" rows="5" placeholder="Ask something like: How can I save more in June based on my food and travel costs?"></textarea>
+                </label>
+                <button id="askAdvisor" class="primary-button" type="button">Ask AI Advisor</button>
+              </section>
+
+              <section class="advisor-card">
+                <h4>Data used for answer</h4>
+                <div class="filter-grid">
+                  <label><span>Period</span><select id="advisorRange"><option value="month">Selected month</option><option value="year">Selected year</option><option value="all">All time</option><option value="custom">Custom dates</option></select></label>
+                  <label><span>Type</span><select id="advisorType"><option value="all">Costs and earnings</option><option value="cost">Costs only</option><option value="earning">Earnings only</option></select></label>
+                  <label><span>Category</span><select id="advisorCategory"></select></label>
+                  <label><span>From</span><input id="advisorFrom" type="date"></label>
+                  <label><span>To</span><input id="advisorTo" type="date"></label>
+                </div>
+                <div id="advisorDataPreview" class="advisor-preview"></div>
+              </section>
+            </div>
+
+            <section class="advisor-card ai-settings">
+              <div class="section-heading">
+                <h4>LLM API settings</h4>
+                <p class="section-note">For GitHub Pages, API keys stay in this browser. They are not stored in the repo.</p>
+              </div>
+              <div class="filter-grid">
+                <label><span>Endpoint</span><input id="aiEndpoint" type="url" placeholder="https://api.openai.com/v1/chat/completions"></label>
+                <label><span>Model</span><input id="aiModel" type="text" placeholder="gpt-4o-mini"></label>
+                <label><span>API key</span><input id="aiApiKey" type="password" placeholder="Optional. Leave empty for local fallback."></label>
+                <label class="checkbox-row"><input id="saveApiKey" type="checkbox"><span>Save API key in this browser</span></label>
+              </div>
+              <p class="backup-note">If no key is provided or the API fails, the app uses a local rule-based recommendation engine.</p>
+            </section>
+
+            <section class="advisor-answer" aria-live="polite">
+              <div class="section-heading">
+                <h4>Recommendation</h4>
+                <button id="copyAdvisorAnswer" class="ghost-button compact" type="button">Copy answer</button>
+              </div>
+              <div id="advisorAnswer" class="answer-box">Ask a question to get a personalized recommendation.</div>
+            </section>
           </article>
 
           <article class="content-panel hidden" data-panel="backup">

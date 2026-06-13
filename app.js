@@ -115,6 +115,21 @@ const els = {
   exportJson: document.getElementById("exportJson"),
   exportCsv: document.getElementById("exportCsv"),
   importJson: document.getElementById("importJson"),
+  advisorMode: document.getElementById("advisorMode"),
+  advisorQuestion: document.getElementById("advisorQuestion"),
+  askAdvisor: document.getElementById("askAdvisor"),
+  advisorRange: document.getElementById("advisorRange"),
+  advisorType: document.getElementById("advisorType"),
+  advisorCategory: document.getElementById("advisorCategory"),
+  advisorFrom: document.getElementById("advisorFrom"),
+  advisorTo: document.getElementById("advisorTo"),
+  advisorDataPreview: document.getElementById("advisorDataPreview"),
+  aiEndpoint: document.getElementById("aiEndpoint"),
+  aiModel: document.getElementById("aiModel"),
+  aiApiKey: document.getElementById("aiApiKey"),
+  saveApiKey: document.getElementById("saveApiKey"),
+  advisorAnswer: document.getElementById("advisorAnswer"),
+  copyAdvisorAnswer: document.getElementById("copyAdvisorAnswer"),
   toast: document.getElementById("toast")
 };
 
@@ -140,10 +155,20 @@ function loadPrefs() {
   try {
     const parsed = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}");
     return {
-      theme: parsed.theme === "dark" ? "dark" : "light"
+      theme: parsed.theme === "dark" ? "dark" : "light",
+      aiEndpoint: typeof parsed.aiEndpoint === "string" ? parsed.aiEndpoint : "https://api.openai.com/v1/chat/completions",
+      aiModel: typeof parsed.aiModel === "string" ? parsed.aiModel : "gpt-4o-mini",
+      aiApiKey: typeof parsed.aiApiKey === "string" ? parsed.aiApiKey : "",
+      saveApiKey: Boolean(parsed.saveApiKey)
     };
   } catch {
-    return { theme: "light" };
+    return {
+      theme: "light",
+      aiEndpoint: "https://api.openai.com/v1/chat/completions",
+      aiModel: "gpt-4o-mini",
+      aiApiKey: "",
+      saveApiKey: false
+    };
   }
 }
 
@@ -1047,6 +1072,238 @@ function renderInlineList(items) {
   return items.map(escapeHtml).join("<br>");
 }
 
+function renderAdvisor() {
+  if (!els.advisorQuestion) return;
+  els.aiEndpoint.value = state.prefs.aiEndpoint;
+  els.aiModel.value = state.prefs.aiModel;
+  els.aiApiKey.value = state.prefs.saveApiKey ? state.prefs.aiApiKey : "";
+  els.saveApiKey.checked = state.prefs.saveApiKey;
+  renderAdvisorPreview();
+}
+
+function advisorEntries() {
+  const range = els.advisorRange.value;
+  const type = els.advisorType.value;
+  const category = els.advisorCategory.value;
+  let from = "";
+  let to = "";
+
+  if (range === "month") {
+    const bounds = monthBounds(state.selectedMonth);
+    from = bounds.start;
+    to = bounds.end;
+  } else if (range === "year") {
+    from = `${state.selectedMonth.slice(0, 4)}-01-01`;
+    to = `${state.selectedMonth.slice(0, 4)}-12-31`;
+  } else if (range === "custom") {
+    from = els.advisorFrom.value;
+    to = els.advisorTo.value;
+  }
+
+  return state.entries.filter((entry) => {
+    if (type !== "all" && entry.type !== type) return false;
+    if (category !== "all" && entry.category !== category) return false;
+    if (from && entry.date < from) return false;
+    if (to && entry.date > to) return false;
+    return true;
+  });
+}
+
+function buildAdvisorContext(entries) {
+  const summary = summarize(entries);
+  const costs = entries.filter((entry) => entry.type === "cost");
+  const earnings = entries.filter((entry) => entry.type === "earning");
+  const byCategory = groupSum(costs, "category");
+  const byMonth = monthlyRows(entries);
+  const topCategories = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const largestCosts = costs.slice().sort((a, b) => Number(b.amount) - Number(a.amount)).slice(0, 8);
+  const sampleEntries = entries.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60);
+
+  return {
+    range: els.advisorRange.value,
+    selectedMonth: state.selectedMonth,
+    filters: {
+      type: els.advisorType.value,
+      category: els.advisorCategory.value,
+      from: els.advisorFrom.value,
+      to: els.advisorTo.value
+    },
+    summary,
+    counts: {
+      entries: entries.length,
+      costEntries: costs.length,
+      earningEntries: earnings.length,
+      activeDays: new Set(entries.map((entry) => entry.date)).size
+    },
+    topCategories: topCategories.map(([category, amount]) => ({ category, amount })),
+    monthly: byMonth.map((row) => ({
+      month: row.label,
+      earnings: row.earnings,
+      costs: row.costs,
+      savings: row.earnings - row.costs
+    })),
+    largestCosts: largestCosts.map((entry) => ({
+      date: entry.date,
+      category: entry.category,
+      description: entry.description,
+      amount: entry.amount
+    })),
+    entries: sampleEntries.map((entry) => ({
+      date: entry.date,
+      type: entry.type,
+      category: entry.category,
+      description: entry.description,
+      amount: entry.amount
+    }))
+  };
+}
+
+function renderAdvisorPreview() {
+  const entries = advisorEntries();
+  const context = buildAdvisorContext(entries);
+  const rate = context.summary.earnings > 0 ? Math.round((context.summary.savings / context.summary.earnings) * 100) : 0;
+  els.advisorDataPreview.innerHTML = `
+    <strong>${context.counts.entries}</strong> entries used<br>
+    Costs: <strong>${money(context.summary.costs)}</strong> · Earnings: <strong>${money(context.summary.earnings)}</strong> · Savings: <strong>${money(context.summary.savings)}</strong><br>
+    Savings rate: <strong>${rate}%</strong> · Active days: <strong>${context.counts.activeDays}</strong>
+  `;
+  const hasKey = Boolean((els.aiApiKey.value || state.prefs.aiApiKey).trim());
+  els.advisorMode.className = hasKey ? "report-status open" : "report-status waiting";
+  els.advisorMode.textContent = hasKey ? "LLM API ready" : "Local fallback ready";
+}
+
+async function askAdvisor() {
+  const question = els.advisorQuestion.value.trim();
+  if (!question) {
+    showToast("Please write a question first.");
+    return;
+  }
+
+  const context = buildAdvisorContext(advisorEntries());
+  saveAiPrefs();
+  els.askAdvisor.disabled = true;
+  els.advisorAnswer.classList.add("loading");
+  els.advisorAnswer.textContent = "Preparing recommendation...";
+
+  try {
+    const apiKey = els.aiApiKey.value.trim();
+    if (apiKey) {
+      els.advisorAnswer.textContent = "Calling LLM API...";
+      const answer = await callAdvisorApi(question, context, apiKey);
+      els.advisorAnswer.classList.remove("loading");
+      els.advisorAnswer.textContent = answer;
+      els.advisorMode.className = "report-status open";
+      els.advisorMode.textContent = "LLM API answer";
+    } else {
+      throw new Error("No API key");
+    }
+  } catch (error) {
+    const fallback = localAdvisorAnswer(question, context);
+    els.advisorAnswer.classList.remove("loading");
+    els.advisorAnswer.textContent = fallback;
+    els.advisorMode.className = "report-status waiting";
+    els.advisorMode.textContent = "Local fallback answer";
+  } finally {
+    els.askAdvisor.disabled = false;
+  }
+}
+
+async function callAdvisorApi(question, context, apiKey) {
+  const endpoint = els.aiEndpoint.value.trim() || "https://api.openai.com/v1/chat/completions";
+  const model = els.aiModel.value.trim() || "gpt-4o-mini";
+  const prompt = [
+    "You are a careful personal finance advisor.",
+    "Use only the user's provided finance data.",
+    "Give practical recommendations in simple language.",
+    "Mention concrete categories, dates, descriptions, and amounts when useful.",
+    "Do not claim certainty beyond the data.",
+    "Avoid legal, tax, or investment advice.",
+    "",
+    `User question: ${question}`,
+    "",
+    `Finance data JSON:\n${JSON.stringify(context, null, 2)}`
+  ].join("\n");
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: "You analyze personal finance tracker data and give concise, specific recommendations." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.3,
+      max_tokens: 750
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`API failed with ${response.status}`);
+  }
+  const data = await response.json();
+  const answer = data?.choices?.[0]?.message?.content;
+  if (!answer) throw new Error("No answer returned");
+  return answer.trim();
+}
+
+function localAdvisorAnswer(question, context) {
+  const summary = context.summary;
+  const recs = buildRecommendations(context.entries.map((entry, index) => ({ id: String(index), ...entry })), summary, Object.fromEntries(context.topCategories.map((row) => [row.category, row.amount])));
+  const topCategory = context.topCategories[0];
+  const largest = context.largestCosts[0];
+  const rate = summary.earnings > 0 ? Math.round((summary.savings / summary.earnings) * 100) : 0;
+  const lower = question.toLowerCase();
+
+  const lines = [
+    "Local AI-style recommendation (fallback, no API key used):",
+    "",
+    `Data checked: ${context.counts.entries} entries. Costs ${money(summary.costs)}, earnings ${money(summary.earnings)}, savings ${money(summary.savings)}.`
+  ];
+
+  if (summary.earnings > 0) {
+    lines.push(`Current savings rate is about ${rate}%.`);
+  }
+  if (topCategory) {
+    lines.push(`Main cost category is ${topCategory.category} with ${money(topCategory.amount)}.`);
+  }
+  if (largest) {
+    lines.push(`Largest cost entry is ${largest.description} (${largest.category}) on ${largest.date}: ${money(largest.amount)}.`);
+  }
+
+  lines.push("");
+  lines.push("Recommendations:");
+
+  if (lower.includes("increase") && lower.includes("saving")) {
+    lines.push("- First reduce the largest recurring or dominant category, because that gives the fastest savings improvement.");
+    lines.push("- Set a target before spending starts, for example saving 10-30% of earnings depending on the month.");
+  } else if (lower.includes("reduce") || lower.includes("cost")) {
+    lines.push("- Sort by category and attack the top category first. Small categories are less important.");
+    lines.push("- Review descriptions in the largest cost entries and separate necessary costs from optional ones.");
+  } else if (lower.includes("category")) {
+    lines.push("- Focus on the category with the highest share of total costs, then check its largest descriptions.");
+  } else {
+    lines.push("- Compare earnings, costs, and savings first; then inspect the top category and largest entries.");
+  }
+
+  recs.slice(0, 3).forEach((item) => lines.push(`- ${item.title}: ${item.text}`));
+  lines.push("");
+  lines.push("For a stronger natural-language answer, add an API key in the LLM settings. The key stays in this browser only if you choose to save it.");
+  return lines.join("\n");
+}
+
+function saveAiPrefs() {
+  state.prefs.aiEndpoint = els.aiEndpoint.value.trim() || "https://api.openai.com/v1/chat/completions";
+  state.prefs.aiModel = els.aiModel.value.trim() || "gpt-4o-mini";
+  state.prefs.saveApiKey = els.saveApiKey.checked;
+  state.prefs.aiApiKey = els.saveApiKey.checked ? els.aiApiKey.value.trim() : "";
+  savePrefs();
+  renderAdvisorPreview();
+}
+
 function groupSum(entries, key) {
   return entries.reduce((acc, entry) => {
     acc[entry[key]] = (acc[entry[key]] || 0) + Number(entry.amount);
@@ -1063,6 +1320,7 @@ function renderAll() {
   renderDailyList();
   renderTransactions();
   renderStatistics();
+  renderAdvisor();
 }
 
 function switchView(view) {
@@ -1075,6 +1333,7 @@ function switchView(view) {
     dashboard: "Overview",
     transactions: "Transactions",
     statistics: "Statistics",
+    advisor: "AI Advisor",
     backup: "Backup"
   }[view];
   renderAll();
@@ -1313,6 +1572,20 @@ function bindEvents() {
   els.openProfitAnalysis.addEventListener("click", () => openAnalysisWindow("profit"));
   els.closeAnalysisDialog.addEventListener("click", () => els.analysisDialog.close());
   els.statsRange.addEventListener("change", renderStatistics);
+  els.askAdvisor.addEventListener("click", askAdvisor);
+  document.querySelectorAll(".preset-question").forEach((button) => {
+    button.addEventListener("click", () => {
+      els.advisorQuestion.value = button.textContent;
+      els.advisorQuestion.focus();
+    });
+  });
+  [els.advisorRange, els.advisorType, els.advisorCategory, els.advisorFrom, els.advisorTo].forEach((control) => {
+    control.addEventListener("change", renderAdvisorPreview);
+  });
+  [els.aiEndpoint, els.aiModel, els.aiApiKey, els.saveApiKey].forEach((control) => {
+    control.addEventListener("change", saveAiPrefs);
+  });
+  els.copyAdvisorAnswer.addEventListener("click", copyAdvisorAnswer);
   els.transactionTable.addEventListener("click", handleTableAction);
   els.exportJson.addEventListener("click", exportJson);
   els.exportCsv.addEventListener("click", exportCsv);
@@ -1347,6 +1620,7 @@ function init() {
   els.monthInput.value = state.selectedMonth;
   populateCategorySelect(els.category, costCategories);
   populateCategorySelect(els.filterCategory, [...new Set([...costCategories, ...earningCategories])], true);
+  populateCategorySelect(els.advisorCategory, [...new Set([...costCategories, ...earningCategories])], true);
   bindEvents();
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     navigator.serviceWorker.register("service-worker.js").catch(() => {});
@@ -1356,6 +1630,17 @@ function init() {
 
 function applyDeviceClass() {
   document.body.classList.toggle("mobile-view", mobileQuery.matches);
+}
+
+async function copyAdvisorAnswer() {
+  const text = els.advisorAnswer.textContent.trim();
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast("Advisor answer copied.");
+  } catch {
+    showToast("Copy failed in this browser.");
+  }
 }
 
 init();

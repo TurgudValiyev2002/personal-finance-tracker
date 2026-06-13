@@ -304,7 +304,8 @@ button {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -315,9 +316,15 @@ select {
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   border-color: var(--teal);
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.13);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 120px;
 }
 
 .month-hero {
@@ -628,6 +635,11 @@ label span {
 .section-heading h3 {
   margin: 0;
   font-size: 1.08rem;
+}
+
+.section-note {
+  margin: 4px 0 0;
+  color: var(--muted);
 }
 
 .stats-controls {
@@ -1203,6 +1215,79 @@ td.amount-col {
   color: var(--muted);
 }
 
+.advisor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(340px, 0.9fr);
+  gap: 14px;
+}
+
+.advisor-card,
+.advisor-answer {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 86%, var(--surface-2));
+}
+
+.advisor-card h4,
+.advisor-answer h4 {
+  margin: 0 0 12px;
+}
+
+.question-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 13px;
+}
+
+.preset-question {
+  color: var(--teal);
+}
+
+.advisor-preview {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.advisor-preview strong {
+  color: var(--ink);
+}
+
+.ai-settings,
+.advisor-answer {
+  margin-top: 14px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 43px;
+}
+
+.checkbox-row input {
+  width: auto;
+}
+
+.answer-box {
+  min-height: 190px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  white-space: pre-wrap;
+}
+
+.answer-box.loading {
+  color: var(--muted);
+}
+
 .entry-dialog {
   width: min(560px, calc(100vw - 28px));
   border: 0;
@@ -1333,7 +1418,7 @@ td.amount-col {
   }
 
   .nav-stack {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .month-hero,
@@ -1341,7 +1426,8 @@ td.amount-col {
   .insight-grid,
   .stat-card-grid,
   .pie-summary,
-  .analysis-grid {
+  .analysis-grid,
+  .advisor-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -1411,7 +1497,7 @@ td.amount-col {
     bottom: 10px;
     z-index: 30;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 6px;
     padding: 8px;
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -1427,13 +1513,13 @@ td.amount-col {
     padding: 7px 5px;
     flex-direction: column;
     gap: 4px;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     text-align: center;
   }
 
   .nav-icon {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
   }
 
   .topbar,
@@ -1527,6 +1613,16 @@ td.amount-col {
   .nav-stack,
   .stats-controls {
     grid-template-columns: 1fr;
+  }
+
+  .question-presets {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .advisor-card,
+  .advisor-answer {
+    padding: 14px;
   }
 
   .daily-chart {
