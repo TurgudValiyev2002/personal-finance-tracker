@@ -164,7 +164,7 @@
                 <h3>Personalized AI Advisor</h3>
                 <p class="section-note">Ask about your own costs, earnings, savings, categories, dates, and descriptions.</p>
               </div>
-              <span id="advisorMode" class="report-status waiting">Local fallback ready</span>
+              <span id="advisorMode" class="report-status waiting">Secure advisor ready</span>
             </div>
 
             <div class="advisor-grid">
@@ -199,16 +199,10 @@
 
             <section class="advisor-card ai-settings">
               <div class="section-heading">
-                <h4>LLM API settings</h4>
-                <p class="section-note">For GitHub Pages, API keys stay in this browser. They are not stored in the repo.</p>
+                <h4>Secure AI service</h4>
+                <p class="section-note">The API key is kept on the backend, not in the browser.</p>
               </div>
-              <div class="filter-grid">
-                <label><span>Endpoint</span><input id="aiEndpoint" type="url" placeholder="https://api.openai.com/v1/chat/completions"></label>
-                <label><span>Model</span><input id="aiModel" type="text" placeholder="gpt-4o-mini"></label>
-                <label><span>API key</span><input id="aiApiKey" type="password" placeholder="Optional. Leave empty for local fallback."></label>
-                <label class="checkbox-row"><input id="saveApiKey" type="checkbox"><span>Save API key in this browser</span></label>
-              </div>
-              <p class="backup-note">If no key is provided or the API fails, the app uses a local rule-based recommendation engine.</p>
+              <p class="backup-note">If the secure AI service is not deployed or temporarily fails, the app uses a local rule-based fallback answer.</p>
             </section>
 
             <section class="advisor-answer" aria-live="polite">

@@ -18,7 +18,19 @@ A clean browser app for tracking daily costs, earnings, and savings. The app is 
 - Opens detailed cost analysis and profit analysis in separate windows.
 - Shows seasonal month banners with lightweight animated effects, including summer sun movement and rainy months.
 - Automatically adapts to mobile screens with bottom navigation, card-style transaction rows, and phone-sized dialogs.
-- Includes a Personalized AI Advisor page with common questions, finance-data filters, optional OpenAI-compatible API calls, and a local fallback recommendation engine.
+- Includes a Personalized AI Advisor page with common questions, finance-data filters, a secure backend AI proxy, and a local fallback recommendation engine.
+
+## Secure AI Advisor Backend
+
+The browser app does not contain an API key. The AI Advisor calls a Vercel serverless endpoint at `api/advisor.js`.
+
+Set these environment variables in Vercel:
+
+- `OPENAI_API_KEY` - your OpenAI API key
+- `OPENAI_MODEL` - recommended: `gpt-5.4-mini`
+- `ALLOWED_ORIGIN` - `https://turgudvaliyev2002.github.io`
+
+Do not commit real API keys to this repository.
 - Saves data in the browser using `localStorage`.
 - Exports JSON backups and CSV transaction files.
 - Imports JSON backups when moving to another browser or computer.

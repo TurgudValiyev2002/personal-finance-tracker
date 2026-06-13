@@ -1,6 +1,7 @@
 const ENTRIES_KEY = "personal-finance-tracker-v1";
 const REPORTS_KEY = "personal-finance-tracker-reports-v1";
 const PREFS_KEY = "personal-finance-tracker-prefs-v1";
+const ADVISOR_API_URL = window.FINANCE_ADVISOR_API_URL || "https://personal-finance-tracker.vercel.app/api/advisor";
 
 const costCategories = [
   "Accommodation",
@@ -124,10 +125,6 @@ const els = {
   advisorFrom: document.getElementById("advisorFrom"),
   advisorTo: document.getElementById("advisorTo"),
   advisorDataPreview: document.getElementById("advisorDataPreview"),
-  aiEndpoint: document.getElementById("aiEndpoint"),
-  aiModel: document.getElementById("aiModel"),
-  aiApiKey: document.getElementById("aiApiKey"),
-  saveApiKey: document.getElementById("saveApiKey"),
   advisorAnswer: document.getElementById("advisorAnswer"),
   copyAdvisorAnswer: document.getElementById("copyAdvisorAnswer"),
   toast: document.getElementById("toast")
@@ -155,19 +152,11 @@ function loadPrefs() {
   try {
     const parsed = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}");
     return {
-      theme: parsed.theme === "dark" ? "dark" : "light",
-      aiEndpoint: typeof parsed.aiEndpoint === "string" ? parsed.aiEndpoint : "https://api.openai.com/v1/chat/completions",
-      aiModel: typeof parsed.aiModel === "string" ? parsed.aiModel : "gpt-4o-mini",
-      aiApiKey: typeof parsed.aiApiKey === "string" ? parsed.aiApiKey : "",
-      saveApiKey: Boolean(parsed.saveApiKey)
+      theme: parsed.theme === "dark" ? "dark" : "light"
     };
   } catch {
     return {
-      theme: "light",
-      aiEndpoint: "https://api.openai.com/v1/chat/completions",
-      aiModel: "gpt-4o-mini",
-      aiApiKey: "",
-      saveApiKey: false
+      theme: "light"
     };
   }
 }
@@ -1074,10 +1063,6 @@ function renderInlineList(items) {
 
 function renderAdvisor() {
   if (!els.advisorQuestion) return;
-  els.aiEndpoint.value = state.prefs.aiEndpoint;
-  els.aiModel.value = state.prefs.aiModel;
-  els.aiApiKey.value = state.prefs.saveApiKey ? state.prefs.aiApiKey : "";
-  els.saveApiKey.checked = state.prefs.saveApiKey;
   renderAdvisorPreview();
 }
 
@@ -1167,9 +1152,8 @@ function renderAdvisorPreview() {
     Costs: <strong>${money(context.summary.costs)}</strong> · Earnings: <strong>${money(context.summary.earnings)}</strong> · Savings: <strong>${money(context.summary.savings)}</strong><br>
     Savings rate: <strong>${rate}%</strong> · Active days: <strong>${context.counts.activeDays}</strong>
   `;
-  const hasKey = Boolean((els.aiApiKey.value || state.prefs.aiApiKey).trim());
-  els.advisorMode.className = hasKey ? "report-status open" : "report-status waiting";
-  els.advisorMode.textContent = hasKey ? "LLM API ready" : "Local fallback ready";
+  els.advisorMode.className = "report-status open";
+  els.advisorMode.textContent = "Secure backend ready";
 }
 
 async function askAdvisor() {
@@ -1180,23 +1164,17 @@ async function askAdvisor() {
   }
 
   const context = buildAdvisorContext(advisorEntries());
-  saveAiPrefs();
   els.askAdvisor.disabled = true;
   els.advisorAnswer.classList.add("loading");
   els.advisorAnswer.textContent = "Preparing recommendation...";
 
   try {
-    const apiKey = els.aiApiKey.value.trim();
-    if (apiKey) {
-      els.advisorAnswer.textContent = "Calling LLM API...";
-      const answer = await callAdvisorApi(question, context, apiKey);
-      els.advisorAnswer.classList.remove("loading");
-      els.advisorAnswer.textContent = answer;
-      els.advisorMode.className = "report-status open";
-      els.advisorMode.textContent = "LLM API answer";
-    } else {
-      throw new Error("No API key");
-    }
+    els.advisorAnswer.textContent = "Calling secure AI service...";
+    const answer = await callAdvisorApi(question, context);
+    els.advisorAnswer.classList.remove("loading");
+    els.advisorAnswer.textContent = answer;
+    els.advisorMode.className = "report-status open";
+    els.advisorMode.textContent = "Secure AI answer";
   } catch (error) {
     const fallback = localAdvisorAnswer(question, context);
     els.advisorAnswer.classList.remove("loading");
@@ -1208,44 +1186,23 @@ async function askAdvisor() {
   }
 }
 
-async function callAdvisorApi(question, context, apiKey) {
-  const endpoint = els.aiEndpoint.value.trim() || "https://api.openai.com/v1/chat/completions";
-  const model = els.aiModel.value.trim() || "gpt-4o-mini";
-  const prompt = [
-    "You are a careful personal finance advisor.",
-    "Use only the user's provided finance data.",
-    "Give practical recommendations in simple language.",
-    "Mention concrete categories, dates, descriptions, and amounts when useful.",
-    "Do not claim certainty beyond the data.",
-    "Avoid legal, tax, or investment advice.",
-    "",
-    `User question: ${question}`,
-    "",
-    `Finance data JSON:\n${JSON.stringify(context, null, 2)}`
-  ].join("\n");
-
-  const response = await fetch(endpoint, {
+async function callAdvisorApi(question, context) {
+  const response = await fetch(ADVISOR_API_URL, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
+      "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: "You analyze personal finance tracker data and give concise, specific recommendations." },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.3,
-      max_tokens: 750
+      question,
+      context
     })
   });
 
   if (!response.ok) {
-    throw new Error(`API failed with ${response.status}`);
+    throw new Error(`Advisor API failed with ${response.status}`);
   }
   const data = await response.json();
-  const answer = data?.choices?.[0]?.message?.content;
+  const answer = data?.answer;
   if (!answer) throw new Error("No answer returned");
   return answer.trim();
 }
@@ -1259,7 +1216,7 @@ function localAdvisorAnswer(question, context) {
   const lower = question.toLowerCase();
 
   const lines = [
-    "Local AI-style recommendation (fallback, no API key used):",
+    "Local fallback recommendation:",
     "",
     `Data checked: ${context.counts.entries} entries. Costs ${money(summary.costs)}, earnings ${money(summary.earnings)}, savings ${money(summary.savings)}.`
   ];
@@ -1291,17 +1248,8 @@ function localAdvisorAnswer(question, context) {
 
   recs.slice(0, 3).forEach((item) => lines.push(`- ${item.title}: ${item.text}`));
   lines.push("");
-  lines.push("For a stronger natural-language answer, add an API key in the LLM settings. The key stays in this browser only if you choose to save it.");
+  lines.push("The secure AI service was unavailable, so this answer was produced locally from the selected finance data.");
   return lines.join("\n");
-}
-
-function saveAiPrefs() {
-  state.prefs.aiEndpoint = els.aiEndpoint.value.trim() || "https://api.openai.com/v1/chat/completions";
-  state.prefs.aiModel = els.aiModel.value.trim() || "gpt-4o-mini";
-  state.prefs.saveApiKey = els.saveApiKey.checked;
-  state.prefs.aiApiKey = els.saveApiKey.checked ? els.aiApiKey.value.trim() : "";
-  savePrefs();
-  renderAdvisorPreview();
 }
 
 function groupSum(entries, key) {
@@ -1581,9 +1529,6 @@ function bindEvents() {
   });
   [els.advisorRange, els.advisorType, els.advisorCategory, els.advisorFrom, els.advisorTo].forEach((control) => {
     control.addEventListener("change", renderAdvisorPreview);
-  });
-  [els.aiEndpoint, els.aiModel, els.aiApiKey, els.saveApiKey].forEach((control) => {
-    control.addEventListener("change", saveAiPrefs);
   });
   els.copyAdvisorAnswer.addEventListener("click", copyAdvisorAnswer);
   els.transactionTable.addEventListener("click", handleTableAction);
