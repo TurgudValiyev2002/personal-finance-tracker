@@ -17,6 +17,7 @@ A clean browser app for tracking daily costs, earnings, and savings. The app is 
 - Gives general statistics with a category pie chart, top category values, KPI cards, and recommendations.
 - Opens detailed cost analysis and profit analysis in separate windows.
 - Shows seasonal month banners with lightweight animated effects, including summer sun movement and rainy months.
+- Automatically adapts to mobile screens with bottom navigation, card-style transaction rows, and phone-sized dialogs.
 - Saves data in the browser using `localStorage`.
 - Exports JSON backups and CSV transaction files.
 - Imports JSON backups when moving to another browser or computer.

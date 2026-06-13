@@ -45,6 +45,8 @@ const state = {
   selectedMonth: monthKey(new Date())
 };
 
+const mobileQuery = window.matchMedia("(max-width: 760px)");
+
 const els = {
   navItems: document.querySelectorAll(".nav-item"),
   pageTitle: document.getElementById("pageTitle"),
@@ -506,14 +508,14 @@ function renderTransactions() {
         </div>`;
     return `
       <tr>
-        <td>${formatDate(entry.date)}</td>
-        <td><span class="badge ${entry.type}">${entry.type}</span></td>
-        <td>${escapeHtml(entry.category)}</td>
-        <td>${escapeHtml(entry.description)}</td>
-        <td class="amount-col ${entry.type === "earning" ? "amount earning" : "amount cost"}">
+        <td data-label="Date">${formatDate(entry.date)}</td>
+        <td data-label="Type"><span class="badge ${entry.type}">${entry.type}</span></td>
+        <td data-label="Category">${escapeHtml(entry.category)}</td>
+        <td data-label="Description">${escapeHtml(entry.description)}</td>
+        <td data-label="Amount" class="amount-col ${entry.type === "earning" ? "amount earning" : "amount cost"}">
           ${entry.type === "earning" ? "+" : "-"}${money(Number(entry.amount))}
         </td>
-        <td>${actions}</td>
+        <td data-label="Actions">${actions}</td>
       </tr>
     `;
   }).join("");
@@ -1315,6 +1317,7 @@ function bindEvents() {
   els.exportJson.addEventListener("click", exportJson);
   els.exportCsv.addEventListener("click", exportCsv);
   els.importJson.addEventListener("change", (event) => importJson(event.target.files[0]));
+  mobileQuery.addEventListener("change", applyDeviceClass);
 }
 
 function shiftMonth(delta) {
@@ -1340,6 +1343,7 @@ function handleTableAction(event) {
 }
 
 function init() {
+  applyDeviceClass();
   els.monthInput.value = state.selectedMonth;
   populateCategorySelect(els.category, costCategories);
   populateCategorySelect(els.filterCategory, [...new Set([...costCategories, ...earningCategories])], true);
@@ -1348,6 +1352,10 @@ function init() {
     navigator.serviceWorker.register("service-worker.js").catch(() => {});
   }
   renderAll();
+}
+
+function applyDeviceClass() {
+  document.body.classList.toggle("mobile-view", mobileQuery.matches);
 }
 
 init();
