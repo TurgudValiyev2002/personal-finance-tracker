@@ -180,7 +180,8 @@ button {
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 9px;
+  justify-content: space-between;
+  gap: 12px;
   width: 100%;
   padding: 12px 14px;
   border: 1px solid transparent;
@@ -190,12 +191,18 @@ button {
   text-align: left;
 }
 
+.nav-label {
+  min-width: 0;
+  font-weight: 750;
+}
+
 .nav-icon {
   width: 24px;
   height: 24px;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.08);
-  font-size: 0.75rem;
+  font-size: 0.9rem;
+  flex: 0 0 auto;
 }
 
 .nav-item:hover,
@@ -1215,10 +1222,23 @@ td.amount-col {
   color: var(--muted);
 }
 
-.advisor-grid {
+.advisor-grid,
+.advisor-focus {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(340px, 0.9fr);
   gap: 14px;
+}
+
+.advisor-heading {
+  align-items: flex-start;
+}
+
+.advisor-focus {
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+}
+
+.advisor-question-card textarea {
+  min-height: 180px;
 }
 
 .advisor-card,
@@ -1245,20 +1265,58 @@ td.amount-col {
   color: var(--teal);
 }
 
+.advisor-context-card {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.advisor-symbol {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 30% 30%, #ffffff 0 12%, transparent 13%),
+    linear-gradient(135deg, color-mix(in srgb, var(--teal) 75%, #22c55e), var(--teal-dark));
+  color: #ffffff;
+  font-size: 1.55rem;
+  font-weight: 900;
+  box-shadow: 0 14px 30px rgba(15, 118, 110, 0.22);
+}
+
 .advisor-preview {
-  margin-top: 12px;
+  margin-top: 6px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--muted);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.advisor-preview div {
+  min-height: 74px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
 }
 
 .advisor-preview strong {
+  display: block;
   color: var(--ink);
+  font-size: 1.2rem;
 }
 
-.ai-settings,
+.advisor-preview span {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.82rem;
+}
+
 .advisor-answer {
   margin-top: 14px;
 }
@@ -1286,6 +1344,85 @@ td.amount-col {
 
 .answer-box.loading {
   color: var(--muted);
+}
+
+.backup-hero {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--surface) 84%, var(--surface-2)), var(--surface)),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--teal) 18%, transparent), transparent 46%);
+  box-shadow: 0 14px 34px rgba(19, 32, 31, 0.08);
+}
+
+.backup-hero h3,
+.backup-hero p {
+  margin: 0;
+}
+
+.backup-hero h3 {
+  font-size: clamp(1.4rem, 2.3vw, 2.1rem);
+}
+
+.backup-hero p {
+  margin-top: 6px;
+  color: var(--muted);
+  max-width: 760px;
+}
+
+.database-icon {
+  width: 100px;
+  height: 100px;
+  display: grid;
+  align-content: center;
+  gap: 0;
+  padding: 12px;
+  border-radius: 20px;
+  background: linear-gradient(145deg, var(--teal), color-mix(in srgb, var(--teal) 70%, #22c55e));
+  box-shadow: 0 20px 40px rgba(15, 118, 110, 0.26);
+}
+
+.database-icon span {
+  height: 26px;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  border-top-color: rgba(255, 255, 255, 0.72);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  margin-top: -5px;
+}
+
+.database-icon span:first-child {
+  margin-top: 0;
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.backup-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.backup-action {
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  min-height: 104px;
+  text-align: left;
+}
+
+.backup-action span {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.backup-action strong {
+  color: var(--ink);
+  font-size: 1.05rem;
 }
 
 .entry-dialog {
@@ -1427,8 +1564,19 @@ td.amount-col {
   .stat-card-grid,
   .pie-summary,
   .analysis-grid,
-  .advisor-grid {
+  .advisor-grid,
+  .advisor-focus,
+  .backup-grid {
     grid-template-columns: 1fr;
+  }
+
+  .backup-hero {
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
+
+  .database-icon {
+    width: 82px;
+    height: 82px;
   }
 }
 
@@ -1618,6 +1766,22 @@ td.amount-col {
   .question-presets {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .advisor-focus,
+  .advisor-preview,
+  .backup-hero,
+  .backup-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .backup-hero {
+    padding: 16px;
+  }
+
+  .database-icon {
+    width: 76px;
+    height: 76px;
   }
 
   .advisor-card,

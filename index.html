@@ -20,11 +20,11 @@
         </div>
 
         <nav class="nav-stack">
-          <button class="nav-item active" data-view="dashboard" type="button"><span class="nav-icon">O</span> Overview</button>
-          <button class="nav-item" data-view="transactions" type="button"><span class="nav-icon">T</span> Transactions</button>
-          <button class="nav-item" data-view="statistics" type="button"><span class="nav-icon">S</span> Statistics</button>
-          <button class="nav-item" data-view="advisor" type="button"><span class="nav-icon">A</span> AI Advisor</button>
-          <button class="nav-item" data-view="backup" type="button"><span class="nav-icon">B</span> Backup</button>
+          <button class="nav-item active" data-view="dashboard" type="button"><span class="nav-label">Overview</span><span class="nav-icon" aria-hidden="true">⌂</span></button>
+          <button class="nav-item" data-view="transactions" type="button"><span class="nav-label">Transactions</span><span class="nav-icon" aria-hidden="true">↕</span></button>
+          <button class="nav-item" data-view="statistics" type="button"><span class="nav-label">Statistics</span><span class="nav-icon" aria-hidden="true">▣</span></button>
+          <button class="nav-item" data-view="advisor" type="button"><span class="nav-label">AI Advisor</span><span class="nav-icon" aria-hidden="true">✦</span></button>
+          <button class="nav-item" data-view="backup" type="button"><span class="nav-label">Backup</span><span class="nav-icon" aria-hidden="true">▤</span></button>
         </nav>
 
         <section class="savings-panel" aria-label="Current savings">
@@ -91,7 +91,7 @@
           </article>
         </section>
 
-        <section class="action-row">
+        <section id="entryActionRow" class="action-row">
           <button id="openAddEntry" class="primary-button" type="button">Add entry</button>
           <p id="lockNotice">This month is open for changes.</p>
         </section>
@@ -159,16 +159,16 @@
           </article>
 
           <article class="content-panel hidden" data-panel="advisor">
-            <div class="section-heading">
+            <div class="section-heading advisor-heading">
               <div>
                 <h3>Personalized AI Advisor</h3>
-                <p class="section-note">Ask about your own costs, earnings, savings, categories, dates, and descriptions.</p>
+                <p class="section-note">Ask naturally. The advisor checks your costs, earnings, categories, dates, and descriptions automatically.</p>
               </div>
-              <span id="advisorMode" class="report-status waiting">Secure advisor ready</span>
+              <span id="advisorMode" class="report-status waiting">Advisor ready</span>
             </div>
 
-            <div class="advisor-grid">
-              <section class="advisor-card">
+            <div class="advisor-focus">
+              <section class="advisor-card advisor-question-card">
                 <h4>Question</h4>
                 <div class="question-presets" aria-label="Common finance questions">
                   <button class="tiny-button preset-question" type="button">How can I increase my savings?</button>
@@ -184,26 +184,13 @@
                 <button id="askAdvisor" class="primary-button" type="button">Ask AI Advisor</button>
               </section>
 
-              <section class="advisor-card">
-                <h4>Data used for answer</h4>
-                <div class="filter-grid">
-                  <label><span>Period</span><select id="advisorRange"><option value="month">Selected month</option><option value="year">Selected year</option><option value="all">All time</option><option value="custom">Custom dates</option></select></label>
-                  <label><span>Type</span><select id="advisorType"><option value="all">Costs and earnings</option><option value="cost">Costs only</option><option value="earning">Earnings only</option></select></label>
-                  <label><span>Category</span><select id="advisorCategory"></select></label>
-                  <label><span>From</span><input id="advisorFrom" type="date"></label>
-                  <label><span>To</span><input id="advisorTo" type="date"></label>
-                </div>
+              <section class="advisor-card advisor-context-card">
+                <div class="advisor-symbol" aria-hidden="true">✦</div>
+                <h4>Automatic finance context</h4>
+                <p class="section-note">The question decides what to focus on. No manual filters are needed.</p>
                 <div id="advisorDataPreview" class="advisor-preview"></div>
               </section>
             </div>
-
-            <section class="advisor-card ai-settings">
-              <div class="section-heading">
-                <h4>Secure AI service</h4>
-                <p class="section-note">The API key is kept on the backend, not in the browser.</p>
-              </div>
-              <p class="backup-note">If the secure AI service is not deployed or temporarily fails, the app uses a local rule-based fallback answer.</p>
-            </section>
 
             <section class="advisor-answer" aria-live="polite">
               <div class="section-heading">
@@ -215,11 +202,19 @@
           </article>
 
           <article class="content-panel hidden" data-panel="backup">
-            <div class="section-heading"><h3>Backup and restore</h3></div>
+            <div class="backup-hero">
+              <div class="database-icon" aria-hidden="true">
+                <span></span><span></span><span></span>
+              </div>
+              <div>
+                <h3>Backup and restore</h3>
+                <p>Keep a private copy of your finance database. Export JSON for full restore, or CSV for spreadsheet analysis.</p>
+              </div>
+            </div>
             <div class="backup-grid">
-              <button id="exportJson" class="secondary-button" type="button">Export JSON backup</button>
-              <button id="exportCsv" class="secondary-button" type="button">Export CSV</button>
-              <label class="file-import"><span>Import JSON backup</span><input id="importJson" type="file" accept="application/json"></label>
+              <button id="exportJson" class="secondary-button backup-action" type="button"><span>Full database backup</span><strong>Export JSON</strong></button>
+              <button id="exportCsv" class="secondary-button backup-action" type="button"><span>Spreadsheet copy</span><strong>Export CSV</strong></button>
+              <label class="file-import backup-action"><span>Restore database</span><strong>Import JSON backup</strong><input id="importJson" type="file" accept="application/json"></label>
             </div>
             <p class="backup-note">Data is saved only in this browser. Export a JSON backup regularly if this is important financial data.</p>
           </article>

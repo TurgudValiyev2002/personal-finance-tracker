@@ -64,6 +64,7 @@ const els = {
   reportHelp: document.getElementById("reportHelp"),
   submitMonth: document.getElementById("submitMonth"),
   seasonScene: document.getElementById("seasonScene"),
+  entryActionRow: document.getElementById("entryActionRow"),
   openAddEntry: document.getElementById("openAddEntry"),
   lockNotice: document.getElementById("lockNotice"),
   entryDialog: document.getElementById("entryDialog"),
@@ -119,11 +120,6 @@ const els = {
   advisorMode: document.getElementById("advisorMode"),
   advisorQuestion: document.getElementById("advisorQuestion"),
   askAdvisor: document.getElementById("askAdvisor"),
-  advisorRange: document.getElementById("advisorRange"),
-  advisorType: document.getElementById("advisorType"),
-  advisorCategory: document.getElementById("advisorCategory"),
-  advisorFrom: document.getElementById("advisorFrom"),
-  advisorTo: document.getElementById("advisorTo"),
   advisorDataPreview: document.getElementById("advisorDataPreview"),
   advisorAnswer: document.getElementById("advisorAnswer"),
   copyAdvisorAnswer: document.getElementById("copyAdvisorAnswer"),
@@ -1067,31 +1063,7 @@ function renderAdvisor() {
 }
 
 function advisorEntries() {
-  const range = els.advisorRange.value;
-  const type = els.advisorType.value;
-  const category = els.advisorCategory.value;
-  let from = "";
-  let to = "";
-
-  if (range === "month") {
-    const bounds = monthBounds(state.selectedMonth);
-    from = bounds.start;
-    to = bounds.end;
-  } else if (range === "year") {
-    from = `${state.selectedMonth.slice(0, 4)}-01-01`;
-    to = `${state.selectedMonth.slice(0, 4)}-12-31`;
-  } else if (range === "custom") {
-    from = els.advisorFrom.value;
-    to = els.advisorTo.value;
-  }
-
-  return state.entries.filter((entry) => {
-    if (type !== "all" && entry.type !== type) return false;
-    if (category !== "all" && entry.category !== category) return false;
-    if (from && entry.date < from) return false;
-    if (to && entry.date > to) return false;
-    return true;
-  });
+  return state.entries.slice();
 }
 
 function buildAdvisorContext(entries) {
@@ -1105,13 +1077,10 @@ function buildAdvisorContext(entries) {
   const sampleEntries = entries.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60);
 
   return {
-    range: els.advisorRange.value,
+    range: "automatic-all-data",
     selectedMonth: state.selectedMonth,
     filters: {
-      type: els.advisorType.value,
-      category: els.advisorCategory.value,
-      from: els.advisorFrom.value,
-      to: els.advisorTo.value
+      note: "No manual filters were applied. The user question should decide which months, dates, categories, or descriptions matter."
     },
     summary,
     counts: {
@@ -1143,9 +1112,11 @@ function buildAdvisorContext(entries) {
   };
 }
 
-function renderAdvisorPreview() {
+function renderAdvisorPreviewLegacy() {
   const entries = advisorEntries();
   const context = buildAdvisorContext(entries);
+  const monthEntries = entries.filter((entry) => entry.date.startsWith(state.selectedMonth));
+  const monthSummary = summarize(monthEntries);
   const rate = context.summary.earnings > 0 ? Math.round((context.summary.savings / context.summary.earnings) * 100) : 0;
   els.advisorDataPreview.innerHTML = `
     <strong>${context.counts.entries}</strong> entries used<br>
@@ -1153,7 +1124,23 @@ function renderAdvisorPreview() {
     Savings rate: <strong>${rate}%</strong> · Active days: <strong>${context.counts.activeDays}</strong>
   `;
   els.advisorMode.className = "report-status open";
-  els.advisorMode.textContent = "Secure backend ready";
+  els.advisorMode.textContent = "Advisor ready";
+}
+
+function renderAdvisorPreview() {
+  const entries = advisorEntries();
+  const context = buildAdvisorContext(entries);
+  const monthEntries = entries.filter((entry) => entry.date.startsWith(state.selectedMonth));
+  const monthSummary = summarize(monthEntries);
+  const rate = context.summary.earnings > 0 ? Math.round((context.summary.savings / context.summary.earnings) * 100) : 0;
+  els.advisorDataPreview.innerHTML = `
+    <div><strong>${context.counts.entries}</strong><span>Total entries scanned</span></div>
+    <div><strong>${money(monthSummary.savings)}</strong><span>${formatMonthTitle(state.selectedMonth)} savings</span></div>
+    <div><strong>${money(context.summary.costs)}</strong><span>All-time costs</span></div>
+    <div><strong>${rate}%</strong><span>All-time savings rate</span></div>
+  `;
+  els.advisorMode.className = "report-status open";
+  els.advisorMode.textContent = "Automatic context ready";
 }
 
 async function askAdvisor() {
@@ -1169,12 +1156,12 @@ async function askAdvisor() {
   els.advisorAnswer.textContent = "Preparing recommendation...";
 
   try {
-    els.advisorAnswer.textContent = "Calling secure AI service...";
+    els.advisorAnswer.textContent = "Calling AI advisor...";
     const answer = await callAdvisorApi(question, context);
     els.advisorAnswer.classList.remove("loading");
     els.advisorAnswer.textContent = answer;
     els.advisorMode.className = "report-status open";
-    els.advisorMode.textContent = "Secure AI answer";
+    els.advisorMode.textContent = "AI answer";
   } catch (error) {
     const fallback = localAdvisorAnswer(question, context);
     els.advisorAnswer.classList.remove("loading");
@@ -1248,7 +1235,7 @@ function localAdvisorAnswer(question, context) {
 
   recs.slice(0, 3).forEach((item) => lines.push(`- ${item.title}: ${item.text}`));
   lines.push("");
-  lines.push("The secure AI service was unavailable, so this answer was produced locally from the selected finance data.");
+  lines.push("The online advisor was unavailable, so this answer was produced locally from the finance data.");
   return lines.join("\n");
 }
 
@@ -1284,6 +1271,7 @@ function switchView(view) {
     advisor: "AI Advisor",
     backup: "Backup"
   }[view];
+  els.entryActionRow.classList.toggle("hidden", !["dashboard", "transactions"].includes(view));
   renderAll();
 }
 
@@ -1527,9 +1515,6 @@ function bindEvents() {
       els.advisorQuestion.focus();
     });
   });
-  [els.advisorRange, els.advisorType, els.advisorCategory, els.advisorFrom, els.advisorTo].forEach((control) => {
-    control.addEventListener("change", renderAdvisorPreview);
-  });
   els.copyAdvisorAnswer.addEventListener("click", copyAdvisorAnswer);
   els.transactionTable.addEventListener("click", handleTableAction);
   els.exportJson.addEventListener("click", exportJson);
@@ -1565,7 +1550,6 @@ function init() {
   els.monthInput.value = state.selectedMonth;
   populateCategorySelect(els.category, costCategories);
   populateCategorySelect(els.filterCategory, [...new Set([...costCategories, ...earningCategories])], true);
-  populateCategorySelect(els.advisorCategory, [...new Set([...costCategories, ...earningCategories])], true);
   bindEvents();
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     navigator.serviceWorker.register("service-worker.js").catch(() => {});
