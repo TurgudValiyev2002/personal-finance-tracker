@@ -1,7 +1,7 @@
 const ENTRIES_KEY = "personal-finance-tracker-v1";
 const REPORTS_KEY = "personal-finance-tracker-reports-v1";
 const PREFS_KEY = "personal-finance-tracker-prefs-v1";
-const ADVISOR_API_URL = window.FINANCE_ADVISOR_API_URL || "https://personal-finance-tracker.vercel.app/api/advisor";
+const ADVISOR_API_URL = window.FINANCE_ADVISOR_API_URL || "https://personal-finance-tracker-phi-liart.vercel.app/api/advisor";
 
 const costCategories = [
   "Accommodation",
