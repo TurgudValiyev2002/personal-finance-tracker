@@ -1,5 +1,9 @@
-const DEFAULT_MODEL = "gpt-5.4-mini";
+const DEFAULT_MODEL = "gpt-4.1-mini";
 const MAX_BODY_BYTES = 120000;
+const MODEL_ALIASES = {
+  "gpt-5.4-mini": "gpt-4.1-mini",
+  "gpt-5.4-nano": "gpt-4.1-mini"
+};
 
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
@@ -32,7 +36,11 @@ export default async function handler(req, res) {
     const answer = await callOpenAI(question, context);
     return res.status(200).json({ answer });
   } catch (error) {
-    return res.status(500).json({ error: "Advisor request failed" });
+    console.error("Advisor request failed:", error?.message || error);
+    return res.status(502).json({
+      error: "Advisor request failed",
+      reason: publicFailureReason(error)
+    });
   }
 }
 
@@ -45,7 +53,7 @@ function setCorsHeaders(req, res) {
 }
 
 async function callOpenAI(question, context) {
-  const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
+  const model = resolveModel(process.env.OPENAI_MODEL);
   const prompt = [
     "You are a careful personal finance advisor.",
     "Use only the user's provided finance tracker data.",
@@ -75,7 +83,8 @@ async function callOpenAI(question, context) {
   });
 
   if (!response.ok) {
-    throw new Error(`OpenAI error ${response.status}`);
+    const details = await response.text();
+    throw new Error(`OpenAI error ${response.status}: ${details.slice(0, 500)}`);
   }
 
   const data = await response.json();
@@ -84,6 +93,25 @@ async function callOpenAI(question, context) {
     throw new Error("No text returned");
   }
   return text.trim();
+}
+
+function resolveModel(configuredModel) {
+  const model = String(configuredModel || DEFAULT_MODEL).trim();
+  return MODEL_ALIASES[model] || model || DEFAULT_MODEL;
+}
+
+function publicFailureReason(error) {
+  const message = String(error?.message || "");
+  if (message.includes("model") || message.includes("OpenAI error 400")) {
+    return "The configured AI model is unavailable or invalid.";
+  }
+  if (message.includes("OpenAI error 401")) {
+    return "The OpenAI API key is missing or invalid.";
+  }
+  if (message.includes("OpenAI error 429")) {
+    return "The OpenAI account is rate limited or has no available quota.";
+  }
+  return "The AI provider request did not complete.";
 }
 
 function extractResponseText(data) {
