@@ -1710,6 +1710,19 @@ td.amount-col {
     min-width: 0;
   }
 
+  body.mobile-view[data-view="dashboard"] .month-hero,
+  body.mobile-view[data-view="dashboard"] [data-panel="dashboard"] {
+    display: none;
+  }
+
+  body.mobile-view[data-view="dashboard"] .workspace-grid {
+    display: none;
+  }
+
+  body.mobile-view[data-view="dashboard"] .summary-grid {
+    margin-bottom: 10px;
+  }
+
   .month-hero {
     padding: 16px;
     gap: 14px;

@@ -1247,6 +1247,7 @@ function groupSum(entries, key) {
 }
 
 function renderAll() {
+  applyViewClass();
   applyTheme();
   applyMonthTheme();
   renderReportState();
@@ -1260,6 +1261,7 @@ function renderAll() {
 
 function switchView(view) {
   state.activeView = view;
+  applyViewClass();
   els.navItems.forEach((item) => item.classList.toggle("active", item.dataset.view === view));
   document.querySelectorAll("[data-panel]").forEach((panel) => {
     panel.classList.toggle("hidden", panel.dataset.panel !== view);
@@ -1559,6 +1561,10 @@ function init() {
 
 function applyDeviceClass() {
   document.body.classList.toggle("mobile-view", mobileQuery.matches);
+}
+
+function applyViewClass() {
+  document.body.dataset.view = state.activeView;
 }
 
 async function copyAdvisorAnswer() {
