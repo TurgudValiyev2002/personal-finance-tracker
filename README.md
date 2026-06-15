@@ -18,7 +18,7 @@ A clean browser app for tracking daily costs, earnings, and savings. The app is 
 - Opens detailed cost analysis and profit analysis in separate windows.
 - Shows seasonal month banners with lightweight animated effects, including summer sun movement and rainy months.
 - Automatically adapts to mobile screens with bottom navigation, card-style transaction rows, and phone-sized dialogs.
-- Includes a Personalized AI Advisor page with common questions, finance-data filters, a secure backend AI proxy, and a local fallback recommendation engine.
+- Includes a Personalized AI Advisor page with common questions, an AI backend proxy, Hugging Face fallback support, and a local fallback recommendation engine.
 
 ## Secure AI Advisor Backend
 
@@ -26,11 +26,13 @@ The browser app does not contain an API key. The AI Advisor calls a Vercel serve
 
 Set these environment variables in Vercel:
 
-- `OPENAI_API_KEY` - your OpenAI API key
-- `OPENAI_MODEL` - recommended: `gpt-5.4-mini`
+- `OPENAI_API_KEY` - optional OpenAI API key
+- `OPENAI_MODEL` - recommended: `gpt-4.1-mini`
+- `HF_TOKEN` - optional Hugging Face token with Inference Providers permission
+- `HF_MODEL` - recommended fallback: `openai/gpt-oss-120b:fastest`
 - `ALLOWED_ORIGIN` - `https://turgudvaliyev2002.github.io`
 
-Do not commit real API keys to this repository.
+The backend uses OpenAI first when `OPENAI_API_KEY` is available. If OpenAI has no quota and `HF_TOKEN` is set, it automatically tries Hugging Face. Do not commit real API keys or tokens to this repository.
 - Saves data in the browser using `localStorage`.
 - Exports JSON backups and CSV transaction files.
 - Imports JSON backups when moving to another browser or computer.
