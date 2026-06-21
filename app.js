@@ -43,10 +43,19 @@ const state = {
   reports: loadReports(),
   prefs: loadPrefs(),
   activeView: "dashboard",
-  selectedMonth: monthKey(new Date())
+  selectedMonth: monthKey(new Date()),
+  auth: {
+    configured: false,
+    checked: false,
+    user: null,
+    profile: null,
+    verified: false
+  },
+  applyingCloudData: false
 };
 
 const mobileQuery = window.matchMedia("(max-width: 760px)");
+let cloudSaveTimer = null;
 
 const els = {
   navItems: document.querySelectorAll(".nav-item"),
@@ -91,6 +100,7 @@ const els = {
   savingsBarFill: document.getElementById("savingsBarFill"),
   savingsHint: document.getElementById("savingsHint"),
   quickTypeFilter: document.getElementById("quickTypeFilter"),
+  recentMonthsTable: document.getElementById("recentMonthsTable"),
   dailyList: document.getElementById("dailyList"),
   dailyChart: document.getElementById("dailyChart"),
   filterType: document.getElementById("filterType"),
@@ -123,6 +133,36 @@ const els = {
   advisorDataPreview: document.getElementById("advisorDataPreview"),
   advisorAnswer: document.getElementById("advisorAnswer"),
   copyAdvisorAnswer: document.getElementById("copyAdvisorAnswer"),
+  authButton: document.getElementById("authButton"),
+  authStatus: document.getElementById("authStatus"),
+  authDialog: document.getElementById("authDialog"),
+  closeAuthDialog: document.getElementById("closeAuthDialog"),
+  authModeChip: document.getElementById("authModeChip"),
+  authTitle: document.getElementById("authTitle"),
+  authSubtitle: document.getElementById("authSubtitle"),
+  authSetupNotice: document.getElementById("authSetupNotice"),
+  loginForm: document.getElementById("loginForm"),
+  loginEmail: document.getElementById("loginEmail"),
+  loginPassword: document.getElementById("loginPassword"),
+  showRegister: document.getElementById("showRegister"),
+  registerForm: document.getElementById("registerForm"),
+  registerName: document.getElementById("registerName"),
+  registerSurname: document.getElementById("registerSurname"),
+  registerAge: document.getElementById("registerAge"),
+  registerCountry: document.getElementById("registerCountry"),
+  registerEmail: document.getElementById("registerEmail"),
+  registerPassword: document.getElementById("registerPassword"),
+  registerPassword2: document.getElementById("registerPassword2"),
+  showLogin: document.getElementById("showLogin"),
+  profilePanel: document.getElementById("profilePanel"),
+  profileAvatar: document.getElementById("profileAvatar"),
+  profileName: document.getElementById("profileName"),
+  profileEmail: document.getElementById("profileEmail"),
+  profileMeta: document.getElementById("profileMeta"),
+  verifyNotice: document.getElementById("verifyNotice"),
+  refreshVerification: document.getElementById("refreshVerification"),
+  resendVerification: document.getElementById("resendVerification"),
+  logoutButton: document.getElementById("logoutButton"),
   toast: document.getElementById("toast")
 };
 
@@ -159,14 +199,46 @@ function loadPrefs() {
 
 function saveEntries() {
   localStorage.setItem(ENTRIES_KEY, JSON.stringify(state.entries));
+  scheduleCloudSave();
 }
 
 function saveReports() {
   localStorage.setItem(REPORTS_KEY, JSON.stringify(state.reports));
+  scheduleCloudSave();
 }
 
 function savePrefs() {
   localStorage.setItem(PREFS_KEY, JSON.stringify(state.prefs));
+}
+
+function scheduleCloudSave() {
+  if (state.applyingCloudData) return;
+  if (!isLoggedIn()) return;
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = setTimeout(saveFinanceToCloud, 650);
+}
+
+async function saveFinanceToCloud() {
+  if (!isLoggedIn() || !window.financeAuth?.saveFinance) return;
+  try {
+    await window.financeAuth.saveFinance({
+      entries: state.entries,
+      reports: state.reports
+    });
+    renderAuth();
+  } catch (error) {
+    showToast(error.message || "Cloud save failed.");
+  }
+}
+
+function isLoggedIn() {
+  return Boolean(state.auth.configured && state.auth.user && state.auth.verified);
+}
+
+function requireLogin(reason = "to use this feature") {
+  if (isLoggedIn()) return true;
+  openAuthDialog("login", reason);
+  return false;
 }
 
 function isValidEntry(entry) {
@@ -191,6 +263,11 @@ function money(value) {
 function monthKey(date) {
   const d = date instanceof Date ? date : new Date(`${date}T00:00:00`);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function shiftMonthKey(month, delta) {
+  const [year, m] = month.split("-").map(Number);
+  return monthKey(new Date(year, m - 1 + delta, 1));
 }
 
 function todayIso() {
@@ -403,6 +480,37 @@ function renderSummary() {
   els.savingsHint.textContent = allTime.earnings > 0
     ? `${Math.round((allTime.savings / allTime.earnings) * 100)}% saved from all earnings`
     : "No entries yet.";
+}
+
+function renderRecentMonthsTable() {
+  const months = Array.from({ length: 4 }, (_, index) => shiftMonthKey(state.selectedMonth, index - 3));
+  els.recentMonthsTable.innerHTML = `
+    <div class="section-heading compact-heading">
+      <h3>Last 4 months</h3>
+      <span class="section-note">Revenue, costs, and savings</span>
+    </div>
+    <div class="recent-table-wrap">
+      <table class="recent-table">
+        <thead>
+          <tr><th>Month</th><th>Revenue</th><th>Cost</th><th>Savings</th></tr>
+        </thead>
+        <tbody>
+          ${months.map((month) => {
+            const summary = summarize(state.entries.filter((entry) => entry.date.startsWith(month)));
+            const isCurrent = month === state.selectedMonth;
+            return `
+              <tr class="${isCurrent ? "current-month-row" : ""}">
+                <td data-label="Month">${formatMonthTitle(month)}</td>
+                <td data-label="Revenue">${money(summary.earnings)}</td>
+                <td data-label="Cost">${money(summary.costs)}</td>
+                <td data-label="Savings" class="${summary.savings >= 0 ? "positive-cell" : "negative-cell"}">${money(summary.savings)}</td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
 function renderDailyChart() {
@@ -1144,6 +1252,8 @@ function renderAdvisorPreview() {
 }
 
 async function askAdvisor() {
+  if (!requireLogin("to use AI recommendations")) return;
+
   const question = els.advisorQuestion.value.trim();
   if (!question) {
     showToast("Please write a question first.");
@@ -1252,6 +1362,7 @@ function renderAll() {
   applyMonthTheme();
   renderReportState();
   renderSummary();
+  renderRecentMonthsTable();
   renderDailyChart();
   renderDailyList();
   renderTransactions();
@@ -1260,6 +1371,8 @@ function renderAll() {
 }
 
 function switchView(view) {
+  if (view === "advisor" && !requireLogin("to use AI recommendations")) return;
+
   state.activeView = view;
   applyViewClass();
   els.navItems.forEach((item) => item.classList.toggle("active", item.dataset.view === view));
@@ -1278,6 +1391,8 @@ function switchView(view) {
 }
 
 function openEntryDialog(mode, entry = null) {
+  if (!requireLogin(mode === "edit" ? "to edit transactions" : "to add transactions")) return;
+
   if (mode === "add" && isMonthSubmitted(state.selectedMonth)) {
     showToast("This month is submitted and locked.");
     return;
@@ -1328,6 +1443,8 @@ function closeEntryDialog() {
 
 function submitEntry(event) {
   event.preventDefault();
+  if (!requireLogin("to save transactions")) return;
+
   const type = selectedType();
   const amount = Number(els.amount.value);
   const entry = {
@@ -1375,6 +1492,8 @@ function editEntry(id) {
 }
 
 function deleteEntry(id) {
+  if (!requireLogin("to delete transactions")) return;
+
   const entry = state.entries.find((item) => item.id === id);
   if (!entry) return;
   if (isMonthSubmitted(monthKey(entry.date))) {
@@ -1390,6 +1509,8 @@ function deleteEntry(id) {
 }
 
 function submitMonthlyReport() {
+  if (!requireLogin("to submit monthly reports")) return;
+
   if (!canSubmitMonth(state.selectedMonth)) {
     showToast("This report cannot be submitted yet.");
     return;
@@ -1472,6 +1593,180 @@ function importJson(file) {
   reader.readAsText(file);
 }
 
+function openAuthDialog(mode = "login", reason = "") {
+  setAuthMode(mode);
+  if (reason) {
+    els.authSubtitle.textContent = `Please login or register ${reason}.`;
+  }
+  els.authDialog.showModal();
+}
+
+function closeAuthDialog() {
+  els.authDialog.close();
+}
+
+function setAuthMode(mode) {
+  const loggedIn = Boolean(state.auth.user);
+  const registerMode = mode === "register";
+  els.loginForm.classList.toggle("hidden", registerMode || loggedIn);
+  els.registerForm.classList.toggle("hidden", !registerMode || loggedIn);
+  els.profilePanel.classList.toggle("hidden", !loggedIn);
+  els.authSetupNotice.classList.toggle("hidden", state.auth.configured);
+  els.authModeChip.textContent = loggedIn ? "Profile" : registerMode ? "Registration" : "Login";
+  els.authTitle.textContent = loggedIn ? "Profile" : registerMode ? "Create account" : "Login";
+  els.authSubtitle.textContent = loggedIn
+    ? "Your account keeps finance data synchronized safely."
+    : registerMode
+      ? "Create an account and activate your email before using protected features."
+      : "Login to save your finance data safely in the cloud.";
+  renderAuth();
+}
+
+function renderAuth() {
+  const user = state.auth.user;
+  const profile = state.auth.profile || {};
+  const configured = state.auth.configured;
+
+  if (!configured) {
+    els.authButton.textContent = "Connect login";
+    els.authStatus.textContent = "Firebase setup needed.";
+  } else if (user && state.auth.verified) {
+    els.authButton.textContent = profile.name ? `${profile.name} Profile` : "Profile";
+    els.authStatus.textContent = "Cloud sync active.";
+  } else if (user) {
+    els.authButton.textContent = "Activate email";
+    els.authStatus.textContent = "Email verification needed.";
+  } else {
+    els.authButton.textContent = "Login / Register";
+    els.authStatus.textContent = "Login to sync data.";
+  }
+
+  if (!user) return;
+  const displayName = profile.displayName || user.displayName || user.email || "User";
+  els.profileAvatar.textContent = displayName.slice(0, 1).toUpperCase();
+  els.profileName.textContent = displayName;
+  els.profileEmail.textContent = user.email || "No email";
+  els.profileMeta.textContent = [
+    profile.age ? `${profile.age} years old` : "",
+    profile.country || "",
+    state.auth.verified ? "Email activated" : "Email not activated"
+  ].filter(Boolean).join(" · ");
+  els.verifyNotice.classList.toggle("hidden", state.auth.verified);
+}
+
+async function submitLogin(event) {
+  event.preventDefault();
+  if (!window.financeAuth?.configured) {
+    showToast("Firebase is not connected yet.");
+    return;
+  }
+  try {
+    await window.financeAuth.login(els.loginEmail.value.trim(), els.loginPassword.value);
+    closeAuthDialog();
+    showToast("Logged in. Data sync is active.");
+  } catch (error) {
+    showToast(error.message || "Login failed.");
+    renderAuth();
+  }
+}
+
+async function submitRegister(event) {
+  event.preventDefault();
+  if (!window.financeAuth?.configured) {
+    showToast("Firebase is not connected yet.");
+    return;
+  }
+  if (els.registerPassword.value !== els.registerPassword2.value) {
+    showToast("Passwords do not match.");
+    return;
+  }
+  try {
+    await window.financeAuth.register({
+      name: els.registerName.value.trim(),
+      surname: els.registerSurname.value.trim(),
+      age: els.registerAge.value,
+      country: els.registerCountry.value.trim(),
+      email: els.registerEmail.value.trim(),
+      password: els.registerPassword.value
+    });
+    setAuthMode("profile");
+    showToast("Activation email sent. Please verify your email.");
+  } catch (error) {
+    showToast(error.message || "Registration failed.");
+  }
+}
+
+async function refreshVerification() {
+  try {
+    await window.financeAuth?.refreshVerification();
+    renderAuth();
+    showToast(state.auth.verified ? "Email is activated." : "Email is not activated yet.");
+  } catch (error) {
+    showToast(error.message || "Verification refresh failed.");
+  }
+}
+
+async function resendVerification() {
+  try {
+    await window.financeAuth?.resendVerification();
+    showToast("Activation email sent again.");
+  } catch (error) {
+    showToast(error.message || "Could not send activation email.");
+  }
+}
+
+async function logout() {
+  try {
+    await window.financeAuth?.logout();
+    closeAuthDialog();
+    showToast("Logged out.");
+  } catch (error) {
+    showToast(error.message || "Logout failed.");
+  }
+}
+
+function applyCloudFinance(finance) {
+  if (!finance) {
+    if (state.entries.length || Object.keys(state.reports).length) scheduleCloudSave();
+    return;
+  }
+
+  const cloudEntries = Array.isArray(finance.entries) ? finance.entries.filter(isValidEntry) : [];
+  const cloudReports = finance.reports && typeof finance.reports === "object" ? finance.reports : {};
+  const hasCloudData = cloudEntries.length || Object.keys(cloudReports).length;
+  if (!hasCloudData) {
+    if (state.entries.length || Object.keys(state.reports).length) scheduleCloudSave();
+    return;
+  }
+
+  state.applyingCloudData = true;
+  state.entries = cloudEntries;
+  state.reports = cloudReports;
+  localStorage.setItem(ENTRIES_KEY, JSON.stringify(state.entries));
+  localStorage.setItem(REPORTS_KEY, JSON.stringify(state.reports));
+  state.applyingCloudData = false;
+  renderAll();
+}
+
+function handleAuthChange(event) {
+  const detail = event.detail || {};
+  state.auth = {
+    configured: Boolean(detail.configured),
+    checked: true,
+    user: detail.user || null,
+    profile: detail.profile || null,
+    verified: Boolean(detail.verified)
+  };
+  renderAuth();
+  if (state.auth.user && state.auth.verified) {
+    applyCloudFinance(detail.finance);
+  }
+}
+
+function handleAuthError(event) {
+  showToast(event.detail?.message || "Authentication error.");
+}
+
 function showToast(message) {
   els.toast.textContent = message;
   els.toast.classList.add("show");
@@ -1480,6 +1775,8 @@ function showToast(message) {
 }
 
 function bindEvents() {
+  window.addEventListener("finance-auth-change", handleAuthChange);
+  window.addEventListener("finance-auth-error", handleAuthError);
   els.navItems.forEach((item) => item.addEventListener("click", () => switchView(item.dataset.view)));
   els.monthInput.addEventListener("change", () => {
     state.selectedMonth = els.monthInput.value || monthKey(new Date());
@@ -1522,6 +1819,15 @@ function bindEvents() {
   els.exportJson.addEventListener("click", exportJson);
   els.exportCsv.addEventListener("click", exportCsv);
   els.importJson.addEventListener("change", (event) => importJson(event.target.files[0]));
+  els.authButton.addEventListener("click", () => openAuthDialog(state.auth.user ? "profile" : "login"));
+  els.closeAuthDialog.addEventListener("click", closeAuthDialog);
+  els.showRegister.addEventListener("click", () => setAuthMode("register"));
+  els.showLogin.addEventListener("click", () => setAuthMode("login"));
+  els.loginForm.addEventListener("submit", submitLogin);
+  els.registerForm.addEventListener("submit", submitRegister);
+  els.refreshVerification.addEventListener("click", refreshVerification);
+  els.resendVerification.addEventListener("click", resendVerification);
+  els.logoutButton.addEventListener("click", logout);
   mobileQuery.addEventListener("change", applyDeviceClass);
 }
 
@@ -1549,6 +1855,7 @@ function handleTableAction(event) {
 
 function init() {
   applyDeviceClass();
+  renderAuth();
   els.monthInput.value = state.selectedMonth;
   populateCategorySelect(els.category, costCategories);
   populateCategorySelect(els.filterCategory, [...new Set([...costCategories, ...earningCategories])], true);

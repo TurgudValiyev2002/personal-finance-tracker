@@ -19,6 +19,7 @@ A clean browser app for tracking daily costs, earnings, and savings. The app is 
 - Shows seasonal month banners with lightweight animated effects, including summer sun movement and rainy months.
 - Automatically adapts to mobile screens with bottom navigation, card-style transaction rows, and phone-sized dialogs.
 - Includes a Personalized AI Advisor page with common questions, an AI backend proxy, Hugging Face fallback support, and a local fallback recommendation engine.
+- Supports Firebase-ready login, registration, email activation, profile view, and cloud database sync.
 
 ## Secure AI Advisor Backend
 
@@ -36,6 +37,45 @@ The backend uses OpenAI first when `OPENAI_API_KEY` is available. If OpenAI has 
 - Saves data in the browser using `localStorage`.
 - Exports JSON backups and CSV transaction files.
 - Imports JSON backups when moving to another browser or computer.
+
+## Firebase Login And Database Setup
+
+The app is prepared for Firebase Authentication and Firestore. Passwords are never stored in this repository or in browser `localStorage`.
+
+1. Open the Firebase Console.
+2. Create a project.
+3. Add a Web app.
+4. Copy the Firebase web config.
+5. Replace `firebase-config.js` with your real config:
+
+```js
+window.FINANCE_FIREBASE_CONFIG = {
+  apiKey: "YOUR_FIREBASE_WEB_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  appId: "YOUR_FIREBASE_WEB_APP_ID"
+};
+```
+
+6. In Firebase Authentication, enable Email/Password sign-in.
+7. In Firestore, create a database.
+8. Use these Firestore security rules:
+
+```text
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      match /finance/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+}
+```
+
+After setup, each user gets their own private `users/{uid}` profile document and `users/{uid}/finance/default` finance document.
 
 ## Important Privacy Note
 

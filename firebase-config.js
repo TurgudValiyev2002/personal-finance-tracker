@@ -1,0 +1,2 @@
+window.FINANCE_FIREBASE_CONFIG = null;
+

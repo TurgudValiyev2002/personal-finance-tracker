@@ -1,9 +1,11 @@
-const CACHE_NAME = "personal-finance-tracker-v10";
+const CACHE_NAME = "personal-finance-tracker-v11";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./firebase-config.js",
+  "./firebase-client.js",
   "./manifest.webmanifest",
   "./assets/icon.svg"
 ];
