@@ -1,4 +1,4 @@
-const CACHE_NAME = "personal-finance-tracker-v13";
+const CACHE_NAME = "personal-finance-tracker-v14";
 const ASSETS = [
   "./",
   "./index.html",

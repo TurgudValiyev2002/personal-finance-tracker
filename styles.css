@@ -1544,6 +1544,24 @@ td.amount-col {
   color: #6f420d;
 }
 
+.auth-feedback {
+  padding: 11px 12px;
+  border-radius: var(--radius);
+  font-weight: 800;
+}
+
+.auth-feedback.error {
+  border: 1px solid color-mix(in srgb, var(--red) 35%, var(--line));
+  background: color-mix(in srgb, var(--red) 12%, var(--surface));
+  color: var(--red);
+}
+
+.auth-feedback.success {
+  border: 1px solid color-mix(in srgb, var(--green) 35%, var(--line));
+  background: color-mix(in srgb, var(--green) 12%, var(--surface));
+  color: var(--green);
+}
+
 .profile-panel {
   display: grid;
   gap: 14px;
@@ -1583,6 +1601,215 @@ td.amount-col {
 
 .auth-actions {
   flex-wrap: wrap;
+}
+
+.profile-page-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 18px;
+  align-items: center;
+  min-height: 170px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 18% 20%, rgba(251, 191, 36, 0.22), transparent 24%),
+    linear-gradient(120deg, color-mix(in srgb, var(--teal) 12%, var(--surface)), color-mix(in srgb, var(--green) 10%, var(--surface)));
+}
+
+.profile-page-avatar {
+  width: 92px;
+  height: 92px;
+  display: grid;
+  place-items: center;
+  border-radius: 28px;
+  background: linear-gradient(135deg, var(--teal), var(--green));
+  color: #ffffff;
+  font-size: 2.6rem;
+  font-weight: 950;
+  box-shadow: 0 18px 40px rgba(16, 185, 129, 0.22);
+}
+
+.profile-page-avatar[data-gender="female"] {
+  background: linear-gradient(135deg, #db2777, #14b8a6);
+}
+
+.profile-page-avatar[data-gender="male"] {
+  background: linear-gradient(135deg, #2563eb, #10b981);
+}
+
+.profile-page-hero h3,
+.profile-page-hero p {
+  margin: 0;
+}
+
+.profile-page-hero h3 {
+  font-size: 2.1rem;
+}
+
+.profile-page-hero p {
+  color: var(--muted);
+}
+
+.coin-flight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.coin-flight span,
+.welcome-coins span {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #fff6c2, #fbbf24 45%, #b45309);
+  box-shadow: 0 8px 18px rgba(245, 158, 11, 0.3);
+}
+
+.coin-flight span {
+  animation: coinFloat 5.5s ease-in-out infinite;
+}
+
+.coin-flight span:nth-child(1) { left: 18%; top: 65%; animation-delay: 0s; }
+.coin-flight span:nth-child(2) { left: 42%; top: 34%; animation-delay: 0.8s; }
+.coin-flight span:nth-child(3) { left: 66%; top: 58%; animation-delay: 1.6s; }
+.coin-flight span:nth-child(4) { left: 84%; top: 28%; animation-delay: 2.3s; }
+
+@keyframes coinFloat {
+  0%, 100% { transform: translateY(18px) rotate(0deg); opacity: 0.45; }
+  45% { transform: translateY(-26px) rotate(140deg); opacity: 1; }
+}
+
+.profile-page-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(360px, 1.2fr);
+  gap: 16px;
+}
+
+.profile-info-card {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.profile-info-card h4 {
+  margin: 0 0 14px;
+}
+
+.profile-info-card dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.profile-info-card dl div {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 12px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-info-card dt {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.profile-info-card dd {
+  margin: 0;
+  font-weight: 850;
+}
+
+.profile-recommendations {
+  margin-top: 16px;
+}
+
+.profile-rec {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-rec:last-child {
+  border-bottom: 0;
+}
+
+.profile-rec p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.positive {
+  color: var(--green);
+  font-weight: 900;
+}
+
+.negative {
+  color: var(--red);
+  font-weight: 900;
+}
+
+.welcome-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: rgba(4, 11, 14, 0.44);
+  backdrop-filter: blur(4px);
+}
+
+.welcome-card {
+  position: relative;
+  min-width: min(440px, calc(100vw - 40px));
+  overflow: hidden;
+  padding: 34px;
+  border: 1px solid color-mix(in srgb, var(--green) 30%, var(--line));
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: center;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.36);
+  animation: welcomePop 0.42s ease both;
+}
+
+.welcome-card strong {
+  display: block;
+  font-size: 2rem;
+}
+
+.welcome-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.welcome-coins {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.welcome-coins span {
+  animation: coinBurst 1.4s ease-out infinite;
+}
+
+.welcome-coins span:nth-child(1) { left: 18%; top: 72%; }
+.welcome-coins span:nth-child(2) { left: 50%; top: 78%; animation-delay: 0.18s; }
+.welcome-coins span:nth-child(3) { left: 78%; top: 72%; animation-delay: 0.34s; }
+
+@keyframes welcomePop {
+  from { transform: translateY(14px) scale(0.96); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes coinBurst {
+  from { transform: translateY(28px) scale(0.7); opacity: 0; }
+  45% { opacity: 1; }
+  to { transform: translateY(-90px) scale(1.05) rotate(170deg); opacity: 0; }
 }
 
 .analysis-dialog::backdrop {
@@ -2075,6 +2302,33 @@ td.amount-col {
   .profile-card,
   .recent-table {
     min-width: 0;
+  }
+
+  .profile-page-hero,
+  .profile-page-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-page-hero {
+    padding: 18px;
+    text-align: center;
+  }
+
+  .profile-page-avatar {
+    margin: 0 auto;
+  }
+
+  .profile-page-hero h3 {
+    font-size: 1.65rem;
+  }
+
+  .profile-info-card dl div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .welcome-card {
+    padding: 26px 18px;
   }
 
   .profile-card {

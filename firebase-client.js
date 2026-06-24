@@ -120,8 +120,11 @@ if (!config || !config.apiKey || !config.authDomain || !config.projectId || !con
       await saveProfile(user.uid, {
         name: profile.name,
         surname: profile.surname,
-        age: Number(profile.age),
+        gender: profile.gender,
+        birthDate: profile.birthDate,
         country: profile.country,
+        residenceCountry: profile.country,
+        originCountry: profile.originCountry,
         email: profile.email,
         displayName,
         createdAt: serverTimestamp()
@@ -132,7 +135,7 @@ if (!config || !config.apiKey || !config.authDomain || !config.projectId || !con
     async login(email, password) {
       const credential = await signInWithEmailAndPassword(auth, email, password);
       await emitAuthState(credential.user);
-      if (!credential.user.emailVerified) {
+      if (!auth.currentUser?.emailVerified) {
         throw new Error("Please activate your email before using the app.");
       }
     },
@@ -161,4 +164,3 @@ if (!config || !config.apiKey || !config.authDomain || !config.projectId || !con
     });
   });
 }
-

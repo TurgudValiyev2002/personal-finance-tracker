@@ -24,6 +24,7 @@
           <button class="nav-item" data-view="transactions" type="button"><span class="nav-label">Transactions</span><span class="nav-icon" aria-hidden="true">↕</span></button>
           <button class="nav-item" data-view="statistics" type="button"><span class="nav-label">Statistics</span><span class="nav-icon" aria-hidden="true">▣</span></button>
           <button class="nav-item" data-view="advisor" type="button"><span class="nav-label">AI Advisor</span><span class="nav-icon" aria-hidden="true">✦</span></button>
+          <button class="nav-item" data-view="profile" type="button"><span class="nav-label">Profile</span><span class="nav-icon" aria-hidden="true">P</span></button>
           <button class="nav-item" data-view="backup" type="button"><span class="nav-label">Backup</span><span class="nav-icon" aria-hidden="true">▤</span></button>
         </nav>
 
@@ -207,6 +208,31 @@
             </section>
           </article>
 
+          <article class="content-panel hidden" data-panel="profile">
+            <div class="profile-page-hero">
+              <div class="coin-flight" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+              <div class="profile-page-avatar" id="profilePageAvatar">U</div>
+              <div>
+                <h3 id="profilePageName">Profile</h3>
+                <p id="profilePageMeta">Login to see account details and monthly finance summaries.</p>
+              </div>
+            </div>
+            <div class="profile-page-grid">
+              <section class="profile-info-card">
+                <h4>Personal details</h4>
+                <dl id="profileDetailsList"></dl>
+              </section>
+              <section class="profile-info-card">
+                <h4>Monthly finance table</h4>
+                <div id="profileMonthlyTable" class="recent-months"></div>
+              </section>
+            </div>
+            <section class="profile-info-card profile-recommendations">
+              <h4>Personal finance recommendations</h4>
+              <div id="profileRecommendationList"></div>
+            </section>
+          </article>
+
           <article class="content-panel hidden" data-panel="backup">
             <div class="backup-hero">
               <div class="database-icon" aria-hidden="true">
@@ -285,6 +311,7 @@
       <form id="loginForm" class="auth-form" autocomplete="on" method="dialog">
         <label><span>Email</span><input id="loginEmail" type="email" autocomplete="email" required></label>
         <label><span>Password</span><input id="loginPassword" type="password" autocomplete="current-password" required></label>
+        <div id="authFeedback" class="auth-feedback hidden" aria-live="polite"></div>
         <button class="primary-button" type="submit">Login</button>
         <button id="showRegister" class="ghost-button" type="button">Create account</button>
       </form>
@@ -293,8 +320,10 @@
         <div class="form-grid">
           <label><span>Name</span><input id="registerName" type="text" autocomplete="given-name" required></label>
           <label><span>Surname</span><input id="registerSurname" type="text" autocomplete="family-name" required></label>
-          <label><span>Age</span><input id="registerAge" type="number" min="13" max="120" required></label>
+          <label><span>Gender</span><select id="registerGender" required><option value="">Select</option><option value="female">Female</option><option value="male">Male</option><option value="prefer-not">Prefer not to say</option></select></label>
+          <label><span>Birth date</span><input id="registerBirthDate" type="date" required></label>
           <label><span>Country of residence</span><input id="registerCountry" type="text" autocomplete="country-name" required></label>
+          <label><span>Country of origin</span><input id="registerOriginCountry" type="text" autocomplete="country-name" required></label>
         </div>
         <label><span>Email</span><input id="registerEmail" type="email" autocomplete="email" required></label>
         <div class="form-grid">
@@ -315,7 +344,7 @@
           </div>
         </div>
         <div id="verifyNotice" class="auth-notice hidden">
-          Your email is not activated yet. Open the activation email, then come back and refresh verification.
+          Your email is not activated yet. Open the activation email, then come back and refresh verification. Please also check the Spam folder, because activation emails can land there.
         </div>
         <div class="modal-actions auth-actions">
           <button id="refreshVerification" class="secondary-button" type="button">Refresh verification</button>
@@ -324,6 +353,14 @@
         </div>
       </section>
     </dialog>
+
+    <div id="welcomeOverlay" class="welcome-overlay hidden" aria-live="polite">
+      <div class="welcome-card">
+        <div class="welcome-coins" aria-hidden="true"><span></span><span></span><span></span></div>
+        <strong id="welcomeTitle">Welcome</strong>
+        <p id="welcomeSubtitle">Opening your finance dashboard.</p>
+      </div>
+    </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script src="firebase-config.js"></script>

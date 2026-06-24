@@ -39,8 +39,8 @@ const seasonProfiles = {
 };
 
 const state = {
-  entries: loadEntries(),
-  reports: loadReports(),
+  entries: [],
+  reports: {},
   prefs: loadPrefs(),
   activeView: "dashboard",
   selectedMonth: monthKey(new Date()),
@@ -148,21 +148,33 @@ const els = {
   registerForm: document.getElementById("registerForm"),
   registerName: document.getElementById("registerName"),
   registerSurname: document.getElementById("registerSurname"),
-  registerAge: document.getElementById("registerAge"),
+  registerGender: document.getElementById("registerGender"),
+  registerBirthDate: document.getElementById("registerBirthDate"),
   registerCountry: document.getElementById("registerCountry"),
+  registerOriginCountry: document.getElementById("registerOriginCountry"),
   registerEmail: document.getElementById("registerEmail"),
   registerPassword: document.getElementById("registerPassword"),
   registerPassword2: document.getElementById("registerPassword2"),
+  authFeedback: document.getElementById("authFeedback"),
   showLogin: document.getElementById("showLogin"),
   profilePanel: document.getElementById("profilePanel"),
   profileAvatar: document.getElementById("profileAvatar"),
   profileName: document.getElementById("profileName"),
   profileEmail: document.getElementById("profileEmail"),
   profileMeta: document.getElementById("profileMeta"),
+  profilePageAvatar: document.getElementById("profilePageAvatar"),
+  profilePageName: document.getElementById("profilePageName"),
+  profilePageMeta: document.getElementById("profilePageMeta"),
+  profileDetailsList: document.getElementById("profileDetailsList"),
+  profileMonthlyTable: document.getElementById("profileMonthlyTable"),
+  profileRecommendationList: document.getElementById("profileRecommendationList"),
   verifyNotice: document.getElementById("verifyNotice"),
   refreshVerification: document.getElementById("refreshVerification"),
   resendVerification: document.getElementById("resendVerification"),
   logoutButton: document.getElementById("logoutButton"),
+  welcomeOverlay: document.getElementById("welcomeOverlay"),
+  welcomeTitle: document.getElementById("welcomeTitle"),
+  welcomeSubtitle: document.getElementById("welcomeSubtitle"),
   toast: document.getElementById("toast")
 };
 
@@ -198,12 +210,16 @@ function loadPrefs() {
 }
 
 function saveEntries() {
-  localStorage.setItem(ENTRIES_KEY, JSON.stringify(state.entries));
+  if (isLoggedIn()) {
+    localStorage.setItem(ENTRIES_KEY, JSON.stringify(state.entries));
+  }
   scheduleCloudSave();
 }
 
 function saveReports() {
-  localStorage.setItem(REPORTS_KEY, JSON.stringify(state.reports));
+  if (isLoggedIn()) {
+    localStorage.setItem(REPORTS_KEY, JSON.stringify(state.reports));
+  }
   scheduleCloudSave();
 }
 
@@ -1356,6 +1372,63 @@ function groupSum(entries, key) {
   }, {});
 }
 
+function monthlySummaryTableHtml(count = 4) {
+  const rows = [];
+  const [year, month] = state.selectedMonth.split("-").map(Number);
+  for (let i = count - 1; i >= 0; i -= 1) {
+    const date = new Date(year, month - 1 - i, 1);
+    const key = monthKey(date);
+    const summary = summarize(state.entries.filter((entry) => entry.date.startsWith(key)));
+    rows.push({
+      label: date.toLocaleDateString("en-GB", { month: "short", year: "numeric" }),
+      ...summary
+    });
+  }
+  return `
+    <table>
+      <thead><tr><th>Month</th><th>Revenue</th><th>Costs</th><th>Savings</th></tr></thead>
+      <tbody>
+        ${rows.map((row) => `<tr><td>${row.label}</td><td>${money(row.earnings)}</td><td>${money(row.costs)}</td><td class="${row.savings >= 0 ? "positive" : "negative"}">${money(row.savings)}</td></tr>`).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderProfilePage() {
+  if (!els.profileDetailsList) return;
+  const profile = state.auth.profile || {};
+  const user = state.auth.user;
+  const displayName = profile.displayName || [profile.name, profile.surname].filter(Boolean).join(" ") || user?.email || "Profile";
+  const avatar = displayName.slice(0, 1).toUpperCase() || "U";
+
+  els.profilePageAvatar.textContent = avatar;
+  els.profilePageAvatar.dataset.gender = profile.gender || "";
+  els.profilePageName.textContent = displayName;
+  els.profilePageMeta.textContent = user
+    ? `${user.email || ""}${state.auth.verified ? " - Email activated" : " - Email activation needed"}`
+    : "Login to see account details and monthly finance summaries.";
+
+  const details = [
+    ["Name", displayName],
+    ["Email", user?.email || "Not logged in"],
+    ["Gender", prettyGender(profile.gender)],
+    ["Birth date", profile.birthDate || "Not set"],
+    ["Age", profile.birthDate ? `${calculateAge(profile.birthDate)} years old` : profile.age ? `${profile.age} years old` : "Not set"],
+    ["Country of residence", profile.country || profile.residenceCountry || "Not set"],
+    ["Country of origin", profile.originCountry || "Not set"]
+  ];
+  els.profileDetailsList.innerHTML = details
+    .map(([key, value]) => `<div><dt>${escapeHtml(key)}</dt><dd>${escapeHtml(value)}</dd></div>`)
+    .join("");
+
+  els.profileMonthlyTable.innerHTML = monthlySummaryTableHtml(6);
+  const costByCategory = groupSum(state.entries.filter((entry) => entry.type === "cost"), "category");
+  const recs = buildRecommendations(state.entries, summarize(state.entries), costByCategory).slice(0, 4);
+  els.profileRecommendationList.innerHTML = recs.length
+    ? recs.map((item) => `<article class="profile-rec"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.text)}</p></article>`).join("")
+    : `<p class="empty-state">Add several transactions to get stronger recommendations.</p>`;
+}
+
 function renderAll() {
   applyViewClass();
   applyTheme();
@@ -1368,10 +1441,12 @@ function renderAll() {
   renderTransactions();
   renderStatistics();
   renderAdvisor();
+  renderProfilePage();
 }
 
 function switchView(view) {
   if (view === "advisor" && !requireLogin("to use AI recommendations")) return;
+  if (view === "profile" && !requireLogin("to view your profile")) return;
 
   state.activeView = view;
   applyViewClass();
@@ -1384,6 +1459,7 @@ function switchView(view) {
     transactions: "Transactions",
     statistics: "Statistics",
     advisor: "AI Advisor",
+    profile: "Profile",
     backup: "Backup"
   }[view];
   els.entryActionRow.classList.toggle("hidden", !["dashboard", "transactions"].includes(view));
@@ -1608,6 +1684,7 @@ function closeAuthDialog() {
 function setAuthMode(mode) {
   const loggedIn = Boolean(state.auth.user);
   const registerMode = mode === "register";
+  clearAuthFeedback();
   els.loginForm.classList.toggle("hidden", registerMode || loggedIn);
   els.registerForm.classList.toggle("hidden", !registerMode || loggedIn);
   els.profilePanel.classList.toggle("hidden", !loggedIn);
@@ -1654,6 +1731,103 @@ function renderAuth() {
   els.verifyNotice.classList.toggle("hidden", state.auth.verified);
 }
 
+function calculateAge(birthDate) {
+  if (!birthDate) return "";
+  const born = new Date(birthDate);
+  if (Number.isNaN(born.getTime())) return "";
+  const today = new Date();
+  let age = today.getFullYear() - born.getFullYear();
+  const beforeBirthday = today.getMonth() < born.getMonth()
+    || (today.getMonth() === born.getMonth() && today.getDate() < born.getDate());
+  if (beforeBirthday) age -= 1;
+  return age > 0 ? age : "";
+}
+
+function prettyGender(value) {
+  return {
+    female: "Female",
+    male: "Male",
+    "prefer-not": "Prefer not to say"
+  }[value] || value || "Not set";
+}
+
+function clearAuthFeedback() {
+  if (!els.authFeedback) return;
+  els.authFeedback.textContent = "";
+  els.authFeedback.className = "auth-feedback hidden";
+}
+
+function showAuthFeedback(message, tone = "error") {
+  if (!els.authFeedback) {
+    showToast(message);
+    return;
+  }
+  els.authFeedback.textContent = message;
+  els.authFeedback.className = `auth-feedback ${tone}`;
+  if (tone === "error") {
+    els.authFeedback.animate([
+      { transform: "translateX(0)" },
+      { transform: "translateX(-7px)" },
+      { transform: "translateX(7px)" },
+      { transform: "translateX(0)" }
+    ], { duration: 280, iterations: 1 });
+  }
+}
+
+function authErrorMessage(error) {
+  const code = error?.code || "";
+  if (code.includes("wrong-password") || code.includes("invalid-credential")) {
+    return "Password or email is not correct. Try again carefully.";
+  }
+  if (code.includes("user-not-found")) return "No account found with this email.";
+  if (code.includes("too-many-requests")) return "Too many attempts. Please wait a little and try again.";
+  if (code.includes("email-already-in-use")) return "This email already has an account. Please login instead.";
+  if (code.includes("weak-password")) return "Password is too weak. Use at least 6 characters.";
+  return error?.message || "Something went wrong. Please try again.";
+}
+
+function showWelcome(profile = {}) {
+  const name = [profile.name, profile.surname].filter(Boolean).join(" ") || profile.displayName || "friend";
+  els.welcomeTitle.textContent = `Welcome, ${name}`;
+  els.welcomeSubtitle.textContent = "Opening your personal money dashboard.";
+  els.welcomeOverlay.classList.remove("hidden");
+  setTimeout(() => els.welcomeOverlay.classList.add("hidden"), 1650);
+}
+
+function renderAuth() {
+  const user = state.auth.user;
+  const profile = state.auth.profile || {};
+  const configured = state.auth.configured;
+
+  if (!configured) {
+    els.authButton.textContent = "Connect login";
+    els.authStatus.textContent = "Firebase setup needed.";
+  } else if (user && state.auth.verified) {
+    els.authButton.textContent = profile.name ? `${profile.name} Profile` : "Profile";
+    els.authStatus.textContent = "Cloud sync active.";
+  } else if (user) {
+    els.authButton.textContent = "Activate email";
+    els.authStatus.textContent = "Email verification needed.";
+  } else {
+    els.authButton.textContent = "Login / Register";
+    els.authStatus.textContent = "Login to sync data.";
+  }
+
+  if (!user) return;
+  const displayName = profile.displayName || user.displayName || user.email || "User";
+  els.profileAvatar.textContent = displayName.slice(0, 1).toUpperCase();
+  els.profileName.textContent = displayName;
+  els.profileEmail.textContent = user.email || "No email";
+  els.profileMeta.textContent = [
+    profile.birthDate ? `${calculateAge(profile.birthDate)} years old` : profile.age ? `${profile.age} years old` : "",
+    profile.country || profile.residenceCountry || "",
+    state.auth.verified ? "Email activated" : "Email not activated"
+  ].filter(Boolean).join(" · ");
+  els.verifyNotice.classList.toggle("hidden", state.auth.verified);
+  els.refreshVerification.classList.toggle("hidden", state.auth.verified);
+  els.resendVerification.classList.toggle("hidden", state.auth.verified);
+}
+
 async function submitLogin(event) {
   event.preventDefault();
   if (!window.financeAuth?.configured) {
@@ -1662,10 +1836,13 @@ async function submitLogin(event) {
   }
   try {
     await window.financeAuth.login(els.loginEmail.value.trim(), els.loginPassword.value);
+    state.activeView = "dashboard";
+    showWelcome(state.auth.profile || {});
     closeAuthDialog();
     showToast("Logged in. Data sync is active.");
   } catch (error) {
-    showToast(error.message || "Login failed.");
+    showAuthFeedback(authErrorMessage(error), "error");
+    showToast(authErrorMessage(error));
     renderAuth();
   }
 }
@@ -1684,15 +1861,18 @@ async function submitRegister(event) {
     await window.financeAuth.register({
       name: els.registerName.value.trim(),
       surname: els.registerSurname.value.trim(),
-      age: els.registerAge.value,
+      gender: els.registerGender.value,
+      birthDate: els.registerBirthDate.value,
       country: els.registerCountry.value.trim(),
+      originCountry: els.registerOriginCountry.value.trim(),
       email: els.registerEmail.value.trim(),
       password: els.registerPassword.value
     });
     setAuthMode("profile");
-    showToast("Activation email sent. Please verify your email.");
+    showToast("Activation email sent. Please check Inbox and Spam.");
   } catch (error) {
-    showToast(error.message || "Registration failed.");
+    showAuthFeedback(authErrorMessage(error), "error");
+    showToast(authErrorMessage(error));
   }
 }
 
@@ -1718,6 +1898,7 @@ async function resendVerification() {
 async function logout() {
   try {
     await window.financeAuth?.logout();
+    clearPrivateFinance();
     closeAuthDialog();
     showToast("Logged out.");
   } catch (error) {
@@ -1727,7 +1908,11 @@ async function logout() {
 
 function applyCloudFinance(finance) {
   if (!finance) {
-    if (state.entries.length || Object.keys(state.reports).length) scheduleCloudSave();
+    state.entries = [];
+    state.reports = {};
+    localStorage.removeItem(ENTRIES_KEY);
+    localStorage.removeItem(REPORTS_KEY);
+    renderAll();
     return;
   }
 
@@ -1735,7 +1920,11 @@ function applyCloudFinance(finance) {
   const cloudReports = finance.reports && typeof finance.reports === "object" ? finance.reports : {};
   const hasCloudData = cloudEntries.length || Object.keys(cloudReports).length;
   if (!hasCloudData) {
-    if (state.entries.length || Object.keys(state.reports).length) scheduleCloudSave();
+    state.entries = [];
+    state.reports = {};
+    localStorage.removeItem(ENTRIES_KEY);
+    localStorage.removeItem(REPORTS_KEY);
+    renderAll();
     return;
   }
 
@@ -1745,6 +1934,17 @@ function applyCloudFinance(finance) {
   localStorage.setItem(ENTRIES_KEY, JSON.stringify(state.entries));
   localStorage.setItem(REPORTS_KEY, JSON.stringify(state.reports));
   state.applyingCloudData = false;
+  renderAll();
+}
+
+function clearPrivateFinance() {
+  state.entries = [];
+  state.reports = {};
+  localStorage.removeItem(ENTRIES_KEY);
+  localStorage.removeItem(REPORTS_KEY);
+  if (state.activeView === "advisor" || state.activeView === "profile") {
+    state.activeView = "dashboard";
+  }
   renderAll();
 }
 
@@ -1760,6 +1960,8 @@ function handleAuthChange(event) {
   renderAuth();
   if (state.auth.user && state.auth.verified) {
     applyCloudFinance(detail.finance);
+  } else {
+    clearPrivateFinance();
   }
 }
 
