@@ -3,6 +3,11 @@ const REPORTS_KEY = "personal-finance-tracker-reports-v1";
 const PREFS_KEY = "personal-finance-tracker-prefs-v1";
 const ADVISOR_API_URL = window.FINANCE_ADVISOR_API_URL || "https://personal-finance-tracker-phi-liart.vercel.app/api/advisor";
 
+// Private finance records must come from the signed-in cloud account only.
+// This prevents a public browser from showing the previous user's cached values.
+localStorage.removeItem(ENTRIES_KEY);
+localStorage.removeItem(REPORTS_KEY);
+
 const costCategories = [
   "Accommodation",
   "Transport",
@@ -1699,7 +1704,7 @@ function setAuthMode(mode) {
   renderAuth();
 }
 
-function renderAuth() {
+function renderAuthLegacyUnused() {
   const user = state.auth.user;
   const profile = state.auth.profile || {};
   const configured = state.auth.configured;
@@ -1826,6 +1831,8 @@ function renderAuth() {
   els.verifyNotice.classList.toggle("hidden", state.auth.verified);
   els.refreshVerification.classList.toggle("hidden", state.auth.verified);
   els.resendVerification.classList.toggle("hidden", state.auth.verified);
+  els.refreshVerification.hidden = state.auth.verified;
+  els.resendVerification.hidden = state.auth.verified;
 }
 
 async function submitLogin(event) {
@@ -2021,7 +2028,13 @@ function bindEvents() {
   els.exportJson.addEventListener("click", exportJson);
   els.exportCsv.addEventListener("click", exportCsv);
   els.importJson.addEventListener("change", (event) => importJson(event.target.files[0]));
-  els.authButton.addEventListener("click", () => openAuthDialog(state.auth.user ? "profile" : "login"));
+  els.authButton.addEventListener("click", () => {
+    if (isLoggedIn()) {
+      switchView("profile");
+      return;
+    }
+    openAuthDialog(state.auth.user ? "profile" : "login");
+  });
   els.closeAuthDialog.addEventListener("click", closeAuthDialog);
   els.showRegister.addEventListener("click", () => setAuthMode("register"));
   els.showLogin.addEventListener("click", () => setAuthMode("login"));
