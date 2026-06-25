@@ -215,9 +215,14 @@
               <div>
                 <h3 id="profilePageName">Profile</h3>
                 <p id="profilePageMeta">Login to see account details and monthly finance summaries.</p>
+                <label class="profile-photo-control">
+                  <span>Change profile photo</span>
+                  <input id="profilePhotoInput" type="file" accept="image/*">
+                </label>
               </div>
               <button id="profileLogoutButton" class="secondary-button profile-logout" type="button">Logout</button>
             </div>
+            <div id="profileStatsStrip" class="profile-stats-strip"></div>
             <div class="profile-page-grid">
               <section class="profile-info-card">
                 <h4>Personal details</h4>
@@ -227,6 +232,16 @@
                 <h4>Monthly finance table</h4>
                 <p class="profile-card-note">Current month is included even before monthly report submission.</p>
                 <div id="profileMonthlyTable" class="recent-months"></div>
+              </section>
+            </div>
+            <div class="profile-page-grid profile-lower-grid">
+              <section class="profile-info-card">
+                <h4>Profile cash-flow plot</h4>
+                <div id="profileMiniChart" class="profile-mini-chart"></div>
+              </section>
+              <section class="profile-info-card">
+                <h4>Recent transactions</h4>
+                <div id="profileTransactionsList" class="profile-transactions-list"></div>
               </section>
             </div>
             <section class="profile-info-card profile-recommendations">

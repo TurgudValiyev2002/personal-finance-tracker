@@ -1641,6 +1641,13 @@ td.amount-col {
   font-size: 3rem;
   font-weight: 950;
   box-shadow: 0 18px 40px rgba(16, 185, 129, 0.22);
+  overflow: hidden;
+}
+
+.profile-page-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .profile-page-avatar[data-gender="female"] {
@@ -1662,6 +1669,33 @@ td.amount-col {
 
 .profile-page-hero p {
   color: var(--muted);
+}
+
+.profile-photo-control {
+  display: inline-grid;
+  margin-top: 12px;
+  cursor: pointer;
+}
+
+.profile-photo-control span {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--teal);
+  font-weight: 900;
+}
+
+.profile-photo-control input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .coin-flight {
@@ -1698,6 +1732,36 @@ td.amount-col {
   display: grid;
   grid-template-columns: minmax(320px, 0.78fr) minmax(460px, 1.22fr);
   gap: 16px;
+}
+
+.profile-lower-grid {
+  margin-top: 16px;
+}
+
+.profile-stats-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.profile-stats-strip article {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.profile-stats-strip span,
+.profile-stats-strip small {
+  display: block;
+  color: var(--muted);
+}
+
+.profile-stats-strip strong {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 1.7rem;
 }
 
 .profile-info-card {
@@ -1767,6 +1831,106 @@ td.amount-col {
   color: var(--muted);
   font-size: 0.82rem;
   text-transform: uppercase;
+}
+
+.profile-mini-chart {
+  min-height: 220px;
+}
+
+.profile-chart-legend {
+  display: flex;
+  gap: 14px;
+  color: var(--muted);
+  font-weight: 850;
+}
+
+.profile-chart-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 99px;
+  background: var(--green);
+}
+
+.profile-chart-legend span:last-child::before {
+  background: var(--red);
+}
+
+.profile-bars {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(40px, 1fr));
+  gap: 12px;
+  align-items: end;
+  min-height: 185px;
+  margin-top: 14px;
+}
+
+.profile-bar-group {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.profile-bar-pair {
+  display: flex;
+  align-items: end;
+  gap: 5px;
+  height: 155px;
+}
+
+.profile-bar-pair i {
+  display: block;
+  width: 14px;
+  border-radius: 6px 6px 2px 2px;
+}
+
+.profile-bar-pair .income {
+  background: var(--green);
+}
+
+.profile-bar-pair .cost {
+  background: var(--red);
+}
+
+.profile-bar-group span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.profile-transactions-list {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-transactions-list article {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-transactions-list article:last-child {
+  border-bottom: 0;
+}
+
+.profile-transactions-list strong,
+.profile-transactions-list span {
+  display: block;
+}
+
+.profile-transactions-list span {
+  color: var(--muted);
+}
+
+.profile-transactions-list b.earning {
+  color: var(--green);
+}
+
+.profile-transactions-list b.cost {
+  color: var(--red);
 }
 
 .profile-recommendations {
@@ -2349,7 +2513,8 @@ td.amount-col {
   }
 
   .profile-page-hero,
-  .profile-page-grid {
+  .profile-page-grid,
+  .profile-stats-strip {
     grid-template-columns: 1fr;
   }
 

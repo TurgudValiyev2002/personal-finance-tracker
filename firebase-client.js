@@ -54,7 +54,7 @@ if (!config || !config.apiKey || !config.authDomain || !config.projectId || !con
     return snap.exists() ? snap.data() : null;
   }
 
-  async function saveProfile(uid, profile) {
+  async function saveProfileDoc(uid, profile) {
     await setDoc(doc(db, "users", uid), {
       ...profile,
       updatedAt: serverTimestamp()
@@ -117,7 +117,7 @@ if (!config || !config.apiKey || !config.authDomain || !config.projectId || !con
       const user = credential.user;
       const displayName = `${profile.name} ${profile.surname}`.trim();
       await updateProfile(user, { displayName });
-      await saveProfile(user.uid, {
+      await saveProfileDoc(user.uid, {
         name: profile.name,
         surname: profile.surname,
         gender: profile.gender,
@@ -149,6 +149,14 @@ if (!config || !config.apiKey || !config.authDomain || !config.projectId || !con
     async refreshVerification() {
       if (!auth.currentUser) throw new Error("Please login first.");
       await emitAuthState(auth.currentUser);
+    },
+    async saveProfile(profile) {
+      if (!auth.currentUser || !auth.currentUser.emailVerified) return;
+      await saveProfileDoc(auth.currentUser.uid, {
+        ...profile,
+        email: auth.currentUser.email,
+        displayName: profile.displayName || auth.currentUser.displayName || ""
+      });
     },
     async saveFinance(payload) {
       if (!auth.currentUser || !auth.currentUser.emailVerified) return;

@@ -171,8 +171,12 @@ const els = {
   profilePageName: document.getElementById("profilePageName"),
   profilePageMeta: document.getElementById("profilePageMeta"),
   profileLogoutButton: document.getElementById("profileLogoutButton"),
+  profilePhotoInput: document.getElementById("profilePhotoInput"),
+  profileStatsStrip: document.getElementById("profileStatsStrip"),
   profileDetailsList: document.getElementById("profileDetailsList"),
   profileMonthlyTable: document.getElementById("profileMonthlyTable"),
+  profileMiniChart: document.getElementById("profileMiniChart"),
+  profileTransactionsList: document.getElementById("profileTransactionsList"),
   profileRecommendationList: document.getElementById("profileRecommendationList"),
   verifyNotice: document.getElementById("verifyNotice"),
   refreshVerification: document.getElementById("refreshVerification"),
@@ -341,6 +345,10 @@ function localIso(date) {
 function monthName(month) {
   const [year, m] = month.split("-").map(Number);
   return new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(new Date(year, m - 1, 1));
+}
+
+function formatMonthTitle(month) {
+  return monthName(month);
 }
 
 function monthIndex(month) {
@@ -622,7 +630,7 @@ function formatDate(date) {
 }
 
 function escapeHtml(value) {
-  return value.replace(/[&<>"']/g, (char) => ({
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
@@ -1406,23 +1414,28 @@ function renderProfilePage() {
   const user = state.auth.user;
   const loggedIn = Boolean(user && state.auth.verified);
   const displayName = profile.displayName || [profile.name, profile.surname].filter(Boolean).join(" ") || user?.email || "Profile";
-  const avatar = displayName.slice(0, 1).toUpperCase() || "U";
 
-  els.profilePageAvatar.textContent = avatar;
+  renderProfileAvatar(profile, displayName);
   els.profilePageAvatar.dataset.gender = profile.gender || "";
   els.profilePageName.textContent = loggedIn ? displayName : "Profile";
   els.profilePageMeta.textContent = loggedIn
     ? `${user.email || ""} - Cloud finance profile`
     : "Login to see account details and monthly finance summaries.";
   els.profileLogoutButton.classList.toggle("hidden", !loggedIn);
+  els.profilePhotoInput.disabled = !loggedIn;
 
   if (!loggedIn) {
     els.profileDetailsList.innerHTML = `<div><dt>Status</dt><dd>Please login to view profile details.</dd></div>`;
+    els.profileStatsStrip.innerHTML = profileStatCards(summarize([]), []);
     els.profileMonthlyTable.innerHTML = monthlySummaryTableHtml(6);
+    els.profileMiniChart.innerHTML = `<p class="empty-state">Login to see profile plots.</p>`;
+    els.profileTransactionsList.innerHTML = `<p class="empty-state">Login to see profile transactions.</p>`;
     els.profileRecommendationList.innerHTML = `<p class="empty-state">Login and add transactions to get recommendations.</p>`;
     return;
   }
 
+  const allSummary = summarize(state.entries);
+  const monthSummary = summarize(entriesInMonth());
   const details = [
     ["Name", displayName],
     ["Email", user?.email || "Not logged in"],
@@ -1436,12 +1449,76 @@ function renderProfilePage() {
     .map(([key, value]) => `<div><dt>${escapeHtml(key)}</dt><dd>${escapeHtml(value)}</dd></div>`)
     .join("");
 
+  els.profileStatsStrip.innerHTML = profileStatCards(allSummary, state.entries);
   els.profileMonthlyTable.innerHTML = monthlySummaryTableHtml(6);
+  renderProfileMiniChart();
+  renderProfileTransactionsList();
   const costByCategory = groupSum(state.entries.filter((entry) => entry.type === "cost"), "category");
-  const recs = buildRecommendations(state.entries, summarize(state.entries), costByCategory).slice(0, 4);
+  const recs = buildRecommendations(state.entries, allSummary, costByCategory).slice(0, 4);
   els.profileRecommendationList.innerHTML = recs.length
     ? recs.map((item) => `<article class="profile-rec"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.text)}</p></article>`).join("")
     : `<p class="empty-state">Add several transactions to get stronger recommendations.</p>`;
+}
+
+function renderProfileAvatar(profile, displayName) {
+  if (profile.photoDataUrl) {
+    els.profilePageAvatar.innerHTML = `<img src="${profile.photoDataUrl}" alt="Profile photo">`;
+    return;
+  }
+  const genderIcon = profile.gender === "female" ? "♀" : profile.gender === "male" ? "♂" : "";
+  els.profilePageAvatar.textContent = genderIcon || (displayName.slice(0, 1).toUpperCase() || "U");
+}
+
+function profileStatCards(summary, entries) {
+  const months = new Set(entries.map((entry) => entry.date.slice(0, 7))).size;
+  const topCategory = Object.entries(groupSum(entries.filter((entry) => entry.type === "cost"), "category"))
+    .sort((a, b) => b[1] - a[1])[0];
+  const savingsRate = summary.earnings > 0 ? Math.round((summary.savings / summary.earnings) * 100) : 0;
+  return `
+    <article><span>Total saved</span><strong>${money(summary.savings)}</strong><small>${savingsRate}% all-time savings rate</small></article>
+    <article><span>Tracked months</span><strong>${months}</strong><small>${entries.length} saved transactions</small></article>
+    <article><span>Top cost category</span><strong>${topCategory ? escapeHtml(topCategory[0]) : "None"}</strong><small>${topCategory ? money(topCategory[1]) : "No costs yet"}</small></article>
+  `;
+}
+
+function renderProfileMiniChart() {
+  const rows = monthlyRows(state.entries).slice(-6);
+  if (!rows.length) {
+    els.profileMiniChart.innerHTML = `<p class="empty-state">No monthly data yet.</p>`;
+    return;
+  }
+  const max = Math.max(...rows.flatMap((row) => [row.earnings, row.costs]), 1);
+  els.profileMiniChart.innerHTML = `
+    <div class="profile-chart-legend"><span>Earnings</span><span>Costs</span></div>
+    <div class="profile-bars">
+      ${rows.map((row) => `
+        <div class="profile-bar-group" title="${row.label}: earnings ${money(row.earnings)}, costs ${money(row.costs)}">
+          <div class="profile-bar-pair">
+            <i class="income" style="height:${Math.max(4, (row.earnings / max) * 150)}px"></i>
+            <i class="cost" style="height:${Math.max(4, (row.costs / max) * 150)}px"></i>
+          </div>
+          <span>${row.short}</span>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderProfileTransactionsList() {
+  const rows = state.entries.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
+  if (!rows.length) {
+    els.profileTransactionsList.innerHTML = `<p class="empty-state">No transactions yet.</p>`;
+    return;
+  }
+  els.profileTransactionsList.innerHTML = rows.map((entry) => `
+    <article>
+      <div>
+        <strong>${escapeHtml(entry.description)}</strong>
+        <span>${formatShortDate(entry.date)} - ${escapeHtml(entry.category)}</span>
+      </div>
+      <b class="${entry.type}">${entry.type === "earning" ? "+" : "-"}${money(entry.amount)}</b>
+    </article>
+  `).join("");
 }
 
 function renderAll() {
@@ -1924,6 +2001,51 @@ async function resendVerification() {
   }
 }
 
+async function updateProfilePhoto(file) {
+  if (!file || !isLoggedIn()) return;
+  try {
+    const photoDataUrl = await resizeProfilePhoto(file);
+    const profile = { ...(state.auth.profile || {}), photoDataUrl };
+    state.auth.profile = profile;
+    renderProfilePage();
+    await window.financeAuth?.saveProfile(profile);
+    showToast("Profile photo updated.");
+  } catch (error) {
+    showToast(error.message || "Could not update profile photo.");
+  } finally {
+    els.profilePhotoInput.value = "";
+  }
+}
+
+function resizeProfilePhoto(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("Please choose an image file."));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Could not read image."));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error("Could not load image."));
+      image.onload = () => {
+        const size = 320;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        const side = Math.min(image.width, image.height);
+        const sx = (image.width - side) / 2;
+        const sy = (image.height - side) / 2;
+        ctx.drawImage(image, sx, sy, side, side, 0, 0, size, size);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 async function logout() {
   try {
     await window.financeAuth?.logout();
@@ -2068,6 +2190,7 @@ function bindEvents() {
   els.resendVerification.addEventListener("click", resendVerification);
   els.logoutButton.addEventListener("click", logout);
   els.profileLogoutButton.addEventListener("click", logout);
+  els.profilePhotoInput.addEventListener("change", (event) => updateProfilePhoto(event.target.files[0]));
   mobileQuery.addEventListener("change", applyDeviceClass);
 }
 
