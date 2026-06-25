@@ -1,67 +1,72 @@
 # Personal Finance Tracker
 
-A clean browser app for tracking daily costs, earnings, and savings. The app is designed for simple personal use: enter the amount, date, category, and description, then review monthly totals, all-time savings, category statistics, and transaction history.
+A clean personal finance web app for tracking daily costs, earnings, savings, monthly reports, and AI-based finance suggestions. I created this website to personally track my costs, understand my spending habits, and increase my savings with a simple but useful dashboard.
 
-## What This App Does
+![Finance Tracker homepage](assets/screenshots/finance-tracker-homepage.png)
 
-- Records costs and earnings as separate entry types.
-- Uses categories such as accommodation, transport, internet, food, restaurant, entertainment, travel, and other.
-- Shows monthly total costs, total earnings, and monthly savings.
-- Shows current all-time savings in the left sidebar.
-- Lets a finished month be submitted as a monthly report.
-- Locks submitted months so their transactions cannot be added, edited, or deleted.
-- Uses a dialog window for add and edit actions.
-- Supports light and dark mode.
-- Changes the month banner design for seasonal months such as March, September, and December.
-- Supports month navigation, date filters, type filters, and category filters.
-- Gives general statistics with a category pie chart, top category values, KPI cards, and recommendations.
-- Opens detailed cost analysis and profit analysis in separate windows.
-- Shows seasonal month banners with lightweight animated effects, including summer sun movement and rainy months.
-- Automatically adapts to mobile screens with bottom navigation, card-style transaction rows, and phone-sized dialogs.
-- Includes a Personalized AI Advisor page with common questions, a Hugging Face backend proxy, model fallback support, and a local fallback recommendation engine.
-- Supports Firebase-ready login, registration, email activation, profile view, and cloud database sync.
+## Why This App Exists
 
-## Secure AI Advisor Backend
+Small daily expenses are easy to forget, but they can strongly affect monthly savings. This app gives one clear place to record costs and earnings, compare months, inspect categories, and understand where money is going. The goal is not only to store transactions, but also to turn them into useful decisions: what increased, what should be reduced, and how savings can improve.
 
-The browser app does not contain an API key. The AI Advisor calls a Vercel serverless endpoint at `api/advisor.js`.
+## Main Features
 
-Set these environment variables in Vercel:
+- Add, edit, filter, and delete cost or earning transactions.
+- Categorize costs such as accommodation, transport, internet, food, restaurant, entertainment, travel, health, education, and other.
+- Track earnings such as salary, scholarship, freelance income, family support, refunds, and other income.
+- View monthly costs, earnings, savings, and all-time savings.
+- Compare the current month with the previous three months.
+- Submit finished monthly reports and lock submitted months.
+- Use light mode and dark mode.
+- Use responsive desktop and mobile layouts.
+- Review statistics with category charts, cost analysis, profit analysis, and savings summaries.
+- Ask the AI Advisor questions about spending, savings, and planning.
+- Register and login so each user has private cloud-synced finance data.
+- Export and import JSON backups and CSV files.
 
-- `HF_TOKEN` - Hugging Face token with Inference Providers permission
-- `HF_MODEL` - primary model, for example `meta-llama/Llama-3.3-70B-Instruct`
-- `HF_FALLBACK_MODEL` - smaller fallback model, for example `mistralai/Mistral-7B-Instruct-v0.3`
-- `ALLOWED_ORIGIN` - `https://turgudvaliyev2002.github.io`
-- `OPENAI_API_KEY` - optional only if OpenAI fallback is wanted
-- `OPENAI_MODEL` - optional OpenAI fallback model, for example `gpt-4.1-mini`
-- `OPENAI_FALLBACK` - set to `true` only if OpenAI should be tried after Hugging Face
+## Live Website
 
-The backend tries Hugging Face first using the primary model, then the Hugging Face fallback model. If both hosted models fail, the browser keeps the app useful by showing the local finance recommendation fallback. Do not commit real API keys or tokens to this repository.
-- Saves data in the browser using `localStorage`.
-- Exports JSON backups and CSV transaction files.
-- Imports JSON backups when moving to another browser or computer.
+The app is hosted as a static frontend on GitHub Pages:
 
-## Firebase Login And Database Setup
-
-The app is prepared for Firebase Authentication and Firestore. Passwords are never stored in this repository or in browser `localStorage`.
-
-1. Open the Firebase Console.
-2. Create a project.
-3. Add a Web app.
-4. Copy the Firebase web config.
-5. Replace `firebase-config.js` with your real config:
-
-```js
-window.FINANCE_FIREBASE_CONFIG = {
-  apiKey: "YOUR_FIREBASE_WEB_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  appId: "YOUR_FIREBASE_WEB_APP_ID"
-};
+```text
+https://turgudvaliyev2002.github.io/personal-finance-tracker/
 ```
 
-6. In Firebase Authentication, enable Email/Password sign-in.
-7. In Firestore, create a database.
-8. Use these Firestore security rules:
+The AI Advisor backend is hosted separately with Vercel serverless functions.
+
+## System Architecture
+
+```text
+Browser UI on GitHub Pages
+        |
+        |-- Firebase Authentication
+        |     - Email/password registration
+        |     - Email verification
+        |     - Login/logout session handling
+        |
+        |-- Cloud Firestore database
+        |     - User profile document
+        |     - Private finance document per user
+        |
+        |-- Vercel API proxy
+              - Keeps AI tokens hidden
+              - Calls Hugging Face Inference Providers
+              - Falls back safely when hosted AI is unavailable
+```
+
+## Database
+
+The cloud database is **Firebase Cloud Firestore**.
+
+Each signed-in user has isolated data under their own Firebase user ID:
+
+```text
+users/{uid}
+users/{uid}/finance/default
+```
+
+The `users/{uid}` document stores profile information such as name, surname, gender, birth date, country of residence, and country of origin. The `users/{uid}/finance/default` document stores that user's finance entries, submitted monthly reports, and app preferences.
+
+Firestore security rules should allow users to read and write only their own documents:
 
 ```text
 rules_version = '2';
@@ -77,43 +82,100 @@ service cloud.firestore {
 }
 ```
 
-After setup, each user gets their own private `users/{uid}` profile document and `users/{uid}/finance/default` finance document.
+## Login And Registration
 
-## Important Privacy Note
+Authentication is handled with **Firebase Authentication**.
 
-This first version is made for GitHub Pages. It does not use a backend database. Your financial entries stay in your browser and are not saved inside the GitHub repository.
+The app uses email/password registration. During registration, the user enters basic profile details, an email address, and a password. Firebase creates the account and sends an email verification link. After login, the app loads that user's private finance data from Firestore. If the user logs out, the visible finance totals return to zero so another visitor does not see the previous user's data.
 
-Because browser storage can be cleared, export a JSON backup regularly. The JSON backup is the safest way to move or restore your data.
+Passwords are never stored in this repository or in browser local storage. Firebase manages password storage and authentication securely.
 
-## Files
+## AI Advisor
 
-- `index.html` - app layout
-- `styles.css` - visual design and responsive layout
-- `app.js` - transaction logic, totals, filters, charts, import/export
-- `manifest.webmanifest` - installable web app metadata
-- `service-worker.js` - offline cache when hosted through HTTPS
-- `assets/icon.svg` - app icon
+The AI Advisor lets the user ask natural questions such as:
 
-## How To Use Locally
+- How can I increase my savings?
+- Which category is hurting my savings most?
+- What changed compared with other months?
+- How can I plan next month better?
 
-Open `index.html` in a browser. The app will work without installing dependencies.
+The browser sends the question and finance summary to a Vercel backend endpoint:
 
-## How To Host Permanently With GitHub Pages
+```text
+api/advisor.js
+```
 
-1. Create a GitHub repository.
-2. Push these files to the repository.
-3. Go to repository `Settings`.
-4. Open `Pages`.
-5. Select `Deploy from a branch`.
-6. Choose branch `main` and folder `/root`.
-7. Open the GitHub Pages URL.
+The backend keeps all model tokens hidden from the browser.
 
-After that, the app is always available as a web page. The app files are hosted by GitHub, but the money entries are still stored privately in the browser where you use the app.
+Current model chain:
 
-## Future Improvements
+1. Primary Hugging Face model: `meta-llama/Llama-3.3-70B-Instruct`
+2. Hugging Face fallback model: `mistralai/Mistral-7B-Instruct-v0.3`
+3. Local heuristic fallback inside the browser
 
-- Optional cloud sync with Supabase or Firebase.
-- Password-protected encrypted local backup.
-- Custom categories.
-- Budget targets per month and per category.
-- Multi-currency support.
+The answer panel also shows which model produced the recommendation. If the hosted LLM fails because of quota, provider availability, or token problems, the local heuristic fallback still gives a useful recommendation from the user's finance data.
+
+## Vercel Environment Variables
+
+Set these variables in the Vercel project:
+
+```text
+HF_TOKEN=your_hugging_face_token
+HF_MODEL=meta-llama/Llama-3.3-70B-Instruct
+HF_FALLBACK_MODEL=mistralai/Mistral-7B-Instruct-v0.3
+ALLOWED_ORIGIN=https://turgudvaliyev2002.github.io
+```
+
+Optional OpenAI fallback variables can also be added, but they are not required:
+
+```text
+OPENAI_API_KEY=your_openai_key
+OPENAI_MODEL=gpt-4.1-mini
+OPENAI_FALLBACK=true
+```
+
+## Firebase Setup
+
+Create a Firebase project and enable:
+
+- Firebase Authentication with Email/Password sign-in
+- Cloud Firestore
+
+Then add your Firebase web app config in `firebase-config.js`:
+
+```js
+window.FINANCE_FIREBASE_CONFIG = {
+  apiKey: "YOUR_FIREBASE_WEB_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  appId: "YOUR_FIREBASE_WEB_APP_ID"
+};
+```
+
+The repository includes `firebase-config.example.js` as a template.
+
+## Project Files
+
+- `index.html` - page structure and app panels
+- `styles.css` - desktop/mobile UI, animations, dark mode, and page design
+- `app.js` - finance logic, charts, filters, profile page, AI Advisor UI, and local fallback
+- `firebase-client.js` - Firebase Authentication and Firestore sync layer
+- `firebase-config.js` - Firebase web configuration
+- `api/advisor.js` - Vercel serverless AI Advisor proxy
+- `service-worker.js` - offline cache for the hosted web app
+- `manifest.webmanifest` - installable app metadata
+- `assets/` - icons and screenshots
+
+## Privacy Notes
+
+The frontend is public because it is hosted on GitHub Pages, but private user data is not stored in the GitHub repository. Finance data is stored in Firestore under the signed-in user's Firebase account. AI API tokens are stored only in Vercel environment variables and are not exposed to the browser.
+
+For important personal data, users should still export JSON backups regularly.
+
+## Local Usage
+
+Open `index.html` directly in a browser for basic local testing. For the full cloud version, configure Firebase and deploy the Vercel backend.
+
+## Author
+
+Created by **Turgud Valiyev** as a personal finance tracking and savings-improvement web app.
