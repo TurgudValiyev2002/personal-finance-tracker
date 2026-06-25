@@ -587,7 +587,13 @@ body[data-view="profile"] .summary-grid {
 
 body[data-view="advisor"] .month-subtitle,
 body[data-view="advisor"] .month-hero,
-body[data-view="advisor"] .summary-grid {
+body[data-view="advisor"] .summary-grid,
+body[data-view="about"] .month-subtitle,
+body[data-view="about"] .month-hero,
+body[data-view="about"] .summary-grid,
+body[data-view="contact"] .month-subtitle,
+body[data-view="contact"] .month-hero,
+body[data-view="contact"] .summary-grid {
   display: none;
 }
 
@@ -596,6 +602,11 @@ body[data-view="profile"] .workspace-grid {
 }
 
 body[data-view="advisor"] .workspace-grid {
+  margin-top: 14px;
+}
+
+body[data-view="about"] .workspace-grid,
+body[data-view="contact"] .workspace-grid {
   margin-top: 14px;
 }
 
@@ -1564,6 +1575,219 @@ body[data-view="advisor"] #copyAdvisorAnswer {
   border-color: rgba(204, 251, 241, 0.18);
 }
 
+.model-badge {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 7px 10px;
+  border: 1px solid rgba(204, 251, 241, 0.18);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.46);
+  color: #dffcf8;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.info-page {
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+  background:
+    radial-gradient(circle at 8% 8%, rgba(34, 197, 94, 0.16), transparent 28%),
+    radial-gradient(circle at 88% 2%, rgba(14, 165, 233, 0.14), transparent 30%),
+    var(--surface);
+}
+
+.info-page::before {
+  content: "";
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  right: -80px;
+  top: -100px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--teal) 30%, transparent);
+  animation: slowSpin 18s linear infinite;
+  pointer-events: none;
+}
+
+.info-hero {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+  min-height: 310px;
+  padding: 28px;
+  border: 1px solid color-mix(in srgb, var(--teal) 22%, var(--line));
+  border-radius: var(--radius);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--surface-2) 80%, #ecfeff), var(--surface));
+}
+
+.info-hero h3 {
+  margin: 12px 0 14px;
+  font-size: clamp(2.1rem, 4vw, 4rem);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.info-hero p {
+  max-width: 980px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.02rem;
+  line-height: 1.75;
+}
+
+.info-orbit {
+  position: relative;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.9) 0 34%, transparent 35%),
+    conic-gradient(from 20deg, #0f766e, #2563eb, #22c55e, #0f766e);
+  box-shadow: 0 28px 70px rgba(15, 118, 110, 0.28);
+  animation: floatIcon 4.5s ease-in-out infinite;
+}
+
+.info-orbit span {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #facc15;
+  box-shadow: 0 0 24px rgba(250, 204, 21, 0.45);
+  animation: orbitDot 5.5s linear infinite;
+}
+
+.info-orbit span:nth-child(1) { transform-origin: 78px 78px; }
+.info-orbit span:nth-child(2) { width: 11px; height: 11px; animation-delay: -1.6s; transform-origin: 64px 64px; background: #38bdf8; }
+.info-orbit span:nth-child(3) { width: 13px; height: 13px; animation-delay: -3.2s; transform-origin: 88px 88px; background: #86efac; }
+
+.info-main-icon {
+  position: relative;
+  z-index: 2;
+  width: 88px;
+  height: 88px;
+  display: grid;
+  place-items: center;
+  border-radius: 24px;
+  background: #0f766e;
+  color: #ffffff;
+  font-size: 3.2rem;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+}
+
+.info-card-grid,
+.contact-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.info-card,
+.contact-card {
+  min-height: 160px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 88%, var(--surface-2));
+  box-shadow: var(--shadow);
+}
+
+.info-card-icon,
+.contact-icon {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--teal), #2563eb);
+  color: #ffffff;
+  font-weight: 900;
+  box-shadow: 0 14px 28px rgba(15, 118, 110, 0.2);
+}
+
+.info-card h4 {
+  margin: 14px 0 8px;
+  font-size: 1.2rem;
+}
+
+.info-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.contact-hero {
+  min-height: 260px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--surface-2) 78%, #f0fdf4), var(--surface));
+}
+
+.contact-orbit .info-main-icon {
+  background: linear-gradient(135deg, #0f766e, #1d4ed8);
+}
+
+.contact-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.contact-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 128px;
+  color: var(--ink);
+  text-decoration: none;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.contact-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--teal) 45%, var(--line));
+  box-shadow: 0 20px 45px rgba(15, 118, 110, 0.18);
+}
+
+.contact-card strong,
+.contact-card small {
+  display: block;
+}
+
+.contact-card strong {
+  font-size: 1.1rem;
+}
+
+.contact-card small {
+  margin-top: 5px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+@keyframes floatIcon {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes orbitDot {
+  from { rotate: 0deg; }
+  to { rotate: 360deg; }
+}
+
+@keyframes slowSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
@@ -2519,6 +2743,10 @@ body[data-view="advisor"] #copyAdvisorAnswer {
     grid-template-columns: 1fr;
   }
 
+  .nav-stack {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .question-presets {
     display: grid;
     grid-template-columns: 1fr;
@@ -2527,8 +2755,36 @@ body[data-view="advisor"] #copyAdvisorAnswer {
   .advisor-focus,
   .advisor-preview,
   .backup-hero,
-  .backup-grid {
+  .backup-grid,
+  .info-hero,
+  .info-card-grid,
+  .contact-grid {
     grid-template-columns: 1fr;
+  }
+
+  .info-hero {
+    min-height: auto;
+    padding: 18px;
+  }
+
+  .info-orbit {
+    width: 132px;
+    height: 132px;
+  }
+
+  .info-main-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+    font-size: 2.4rem;
+  }
+
+  .info-hero h3 {
+    font-size: 2.2rem;
+  }
+
+  .contact-card {
+    min-height: 108px;
   }
 
   .backup-hero {

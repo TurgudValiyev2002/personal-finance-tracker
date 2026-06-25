@@ -56,6 +56,7 @@ const state = {
     profile: null,
     verified: false
   },
+  advisorModelName: "not used yet",
   applyingCloudData: false
 };
 
@@ -137,6 +138,7 @@ const els = {
   askAdvisor: document.getElementById("askAdvisor"),
   advisorDataPreview: document.getElementById("advisorDataPreview"),
   advisorAnswer: document.getElementById("advisorAnswer"),
+  advisorModelName: document.getElementById("advisorModelName"),
   copyAdvisorAnswer: document.getElementById("copyAdvisorAnswer"),
   authButton: document.getElementById("authButton"),
   authStatus: document.getElementById("authStatus"),
@@ -1284,6 +1286,9 @@ function renderAdvisorPreview() {
   `;
   els.advisorMode.className = "report-status open";
   els.advisorMode.textContent = "Automatic context ready";
+  if (els.advisorModelName) {
+    els.advisorModelName.textContent = `Model: ${state.advisorModelName}`;
+  }
 }
 
 async function askAdvisor() {
@@ -1302,17 +1307,25 @@ async function askAdvisor() {
 
   try {
     els.advisorAnswer.textContent = "Calling AI advisor...";
-    const answer = await callAdvisorApi(question, context);
+    const result = await callAdvisorApi(question, context);
     els.advisorAnswer.classList.remove("loading");
-    els.advisorAnswer.textContent = answer;
+    els.advisorAnswer.textContent = result.answer;
     els.advisorMode.className = "report-status open";
     els.advisorMode.textContent = "AI answer";
+    state.advisorModelName = result.model || "hosted AI";
+    if (els.advisorModelName) {
+      els.advisorModelName.textContent = `Model: ${state.advisorModelName}`;
+    }
   } catch (error) {
     const fallback = localAdvisorAnswer(question, context);
     els.advisorAnswer.classList.remove("loading");
     els.advisorAnswer.textContent = fallback;
     els.advisorMode.className = "report-status waiting";
     els.advisorMode.textContent = "Local fallback answer";
+    state.advisorModelName = "local heuristic fallback";
+    if (els.advisorModelName) {
+      els.advisorModelName.textContent = `Model: ${state.advisorModelName}`;
+    }
   } finally {
     els.askAdvisor.disabled = false;
   }
@@ -1336,7 +1349,10 @@ async function callAdvisorApi(question, context) {
   const data = await response.json();
   const answer = data?.answer;
   if (!answer) throw new Error("No answer returned");
-  return answer.trim();
+  return {
+    answer: answer.trim(),
+    model: data?.model ? String(data.model).trim() : ""
+  };
 }
 
 function localAdvisorAnswer(question, context) {
@@ -1563,7 +1579,9 @@ function switchView(view) {
     statistics: "Statistics",
     advisor: "AI Advisor",
     profile: "Profile",
-    backup: "Backup"
+    backup: "Backup",
+    about: "About",
+    contact: "Contact"
   }[view];
   renderAll();
 }

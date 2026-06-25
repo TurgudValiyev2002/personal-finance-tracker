@@ -35,8 +35,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Question and context are required" });
     }
 
-    const answer = await callAdvisorProvider(question, context);
-    return res.status(200).json({ answer });
+    const result = await callAdvisorProvider(question, context);
+    return res.status(200).json(result);
   } catch (error) {
     console.error("Advisor request failed:", error?.message || error);
     return res.status(502).json({
@@ -104,7 +104,10 @@ async function callOpenAI(question, context) {
   if (!text) {
     throw new Error("No text returned");
   }
-  return text.trim();
+  return {
+    answer: text.trim(),
+    model
+  };
 }
 
 async function callHuggingFace(question, context) {
@@ -157,7 +160,10 @@ async function callHuggingFaceModel(model, question, context) {
   if (!text) {
     throw new Error("No text returned from Hugging Face");
   }
-  return text.trim();
+  return {
+    answer: text.trim(),
+    model
+  };
 }
 
 function huggingFaceModelChain() {

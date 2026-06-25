@@ -26,6 +26,8 @@
           <button class="nav-item" data-view="advisor" type="button"><span class="nav-label">AI Advisor</span><span class="nav-icon" aria-hidden="true">✦</span></button>
           <button class="nav-item" data-view="profile" type="button"><span class="nav-label">Profile</span><span class="nav-icon" aria-hidden="true">P</span></button>
           <button class="nav-item" data-view="backup" type="button"><span class="nav-label">Backup</span><span class="nav-icon" aria-hidden="true">▤</span></button>
+          <button class="nav-item" data-view="about" type="button"><span class="nav-label">About</span><span class="nav-icon" aria-hidden="true">i</span></button>
+          <button class="nav-item" data-view="contact" type="button"><span class="nav-label">Contact</span><span class="nav-icon" aria-hidden="true">@</span></button>
         </nav>
 
         <section class="savings-panel" aria-label="Current savings">
@@ -201,7 +203,10 @@
 
             <section class="advisor-answer" aria-live="polite">
               <div class="section-heading">
-                <h4>Recommendation answer</h4>
+                <div>
+                  <h4>Recommendation answer</h4>
+                  <span id="advisorModelName" class="model-badge">Model: not used yet</span>
+                </div>
                 <button id="copyAdvisorAnswer" class="ghost-button compact" type="button">Copy answer</button>
               </div>
               <div id="advisorAnswer" class="answer-box">Ask a question to get a personalized recommendation.</div>
@@ -266,6 +271,69 @@
               <label class="file-import backup-action"><span>Restore database</span><strong>Import JSON backup</strong><input id="importJson" type="file" accept="application/json"></label>
             </div>
             <p class="backup-note">Data is saved only in this browser. Export a JSON backup regularly if this is important financial data.</p>
+          </article>
+
+          <article class="content-panel hidden info-page about-page" data-panel="about">
+            <div class="info-hero">
+              <div class="info-orbit" aria-hidden="true">
+                <span></span><span></span><span></span>
+                <div class="info-main-icon">i</div>
+              </div>
+              <div>
+                <span class="theme-chip">Personal finance project</span>
+                <h3>About this website</h3>
+                <p>This website is a personal finance tracker for recording daily costs, earnings, and savings in a simple way. It helps users see where money goes, compare months, and understand whether savings are improving. The app is used by adding each transaction with a date, amount, category, and short description, then checking the dashboard, statistics, profile summary, and AI Advisor. The result is a clearer view of spending habits and better monthly planning. The AI Advisor adds value by reading the finance data and turning it into practical suggestions, while the local fallback keeps recommendations available even when hosted AI is unavailable. I am Turgud Valiyev, and I created this website to personally track my costs, understand my habits, and increase my savings.</p>
+              </div>
+            </div>
+            <div class="info-card-grid">
+              <section class="info-card">
+                <div class="info-card-icon">1</div>
+                <h4>Track</h4>
+                <p>Record costs and earnings with clean categories and short notes.</p>
+              </section>
+              <section class="info-card">
+                <div class="info-card-icon">2</div>
+                <h4>Understand</h4>
+                <p>Review monthly totals, charts, and category patterns before spending becomes unclear.</p>
+              </section>
+              <section class="info-card">
+                <div class="info-card-icon">3</div>
+                <h4>Improve</h4>
+                <p>Use AI and statistics together to find better saving decisions.</p>
+              </section>
+            </div>
+          </article>
+
+          <article class="content-panel hidden info-page contact-page" data-panel="contact">
+            <div class="info-hero contact-hero">
+              <div class="info-orbit contact-orbit" aria-hidden="true">
+                <span></span><span></span><span></span>
+                <div class="info-main-icon">@</div>
+              </div>
+              <div>
+                <span class="theme-chip">Contact</span>
+                <h3>Contact Turgud Valiyev</h3>
+                <p>For questions, research discussion, collaboration, or feedback about the finance tracker, use the contact channels below.</p>
+              </div>
+            </div>
+            <div class="contact-grid">
+              <a class="contact-card" href="mailto:turgud.valiyev2002@gmail.com">
+                <span class="contact-icon">M</span>
+                <span><strong>Mail</strong><small>turgud.valiyev2002@gmail.com</small></span>
+              </a>
+              <a class="contact-card" href="tel:+4368184218262">
+                <span class="contact-icon">P</span>
+                <span><strong>Phone</strong><small>+4368184218262</small></span>
+              </a>
+              <a class="contact-card" href="https://www.linkedin.com/in/turgud-valiyev-37259120b/" target="_blank" rel="noopener">
+                <span class="contact-icon">in</span>
+                <span><strong>LinkedIn</strong><small>linkedin.com/in/turgud-valiyev-37259120b</small></span>
+              </a>
+              <a class="contact-card" href="https://scholar.google.com/citations?user=qHmwI_QAAAAJ&amp;hl=en&amp;oi=ao" target="_blank" rel="noopener">
+                <span class="contact-icon">G</span>
+                <span><strong>Google Scholar</strong><small>scholar.google.com/citations?user=qHmwI_QAAAAJ</small></span>
+              </a>
+            </div>
           </article>
         </section>
       </main>
