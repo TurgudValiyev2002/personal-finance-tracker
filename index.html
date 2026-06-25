@@ -169,14 +169,14 @@
             <div class="section-heading advisor-heading">
               <div>
                 <h3>Personalized AI Advisor</h3>
-                <p class="section-note">Ask naturally. The advisor checks your costs, earnings, categories, dates, and descriptions automatically.</p>
+                <p class="section-note">Ask naturally. The advisor reads your saved finance data and gives practical suggestions from the numbers, dates, categories, and descriptions.</p>
               </div>
               <span id="advisorMode" class="report-status waiting">Advisor ready</span>
             </div>
 
             <div class="advisor-focus">
               <section class="advisor-card advisor-question-card">
-                <h4>Question</h4>
+                <h4>Ask your question</h4>
                 <div class="question-presets" aria-label="Common finance questions">
                   <button class="tiny-button preset-question" type="button">How can I increase my savings?</button>
                   <button class="tiny-button preset-question" type="button">Where can I reduce my costs?</button>
@@ -186,7 +186,7 @@
                 </div>
                 <label>
                   <span>Your question</span>
-                  <textarea id="advisorQuestion" rows="5" placeholder="Ask something like: How can I save more in June based on my food and travel costs?"></textarea>
+                  <textarea id="advisorQuestion" rows="9" placeholder="Ask something like: How can I save more based on my food, travel, rent, and earning patterns?"></textarea>
                 </label>
                 <button id="askAdvisor" class="primary-button" type="button">Ask AI Advisor</button>
               </section>
@@ -201,7 +201,7 @@
 
             <section class="advisor-answer" aria-live="polite">
               <div class="section-heading">
-                <h4>Recommendation</h4>
+                <h4>Recommendation answer</h4>
                 <button id="copyAdvisorAnswer" class="ghost-button compact" type="button">Copy answer</button>
               </div>
               <div id="advisorAnswer" class="answer-box">Ask a question to get a personalized recommendation.</div>

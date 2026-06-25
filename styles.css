@@ -585,7 +585,17 @@ body[data-view="profile"] .summary-grid {
   display: none;
 }
 
+body[data-view="advisor"] .month-subtitle,
+body[data-view="advisor"] .month-hero,
+body[data-view="advisor"] .summary-grid {
+  display: none;
+}
+
 body[data-view="profile"] .workspace-grid {
+  margin-top: 14px;
+}
+
+body[data-view="advisor"] .workspace-grid {
   margin-top: 14px;
 }
 
@@ -1396,6 +1406,162 @@ td.amount-col {
 
 .advisor-answer {
   margin-top: 14px;
+}
+
+body[data-view="advisor"] .content-panel[data-panel="advisor"] {
+  min-height: calc(100vh - 128px);
+  padding: 20px;
+  color: #ecfffb;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(20, 184, 166, 0.26), transparent 32%),
+    radial-gradient(circle at 88% 18%, rgba(56, 189, 248, 0.18), transparent 30%),
+    linear-gradient(135deg, #062421 0%, #07313a 48%, #10243d 100%);
+  border-color: rgba(153, 246, 228, 0.22);
+  box-shadow: 0 24px 55px rgba(8, 30, 43, 0.18);
+}
+
+body[data-view="advisor"] .advisor-heading {
+  margin-bottom: 20px;
+}
+
+body[data-view="advisor"] .advisor-heading h3 {
+  font-size: clamp(1.75rem, 2.6vw, 2.65rem);
+  letter-spacing: 0;
+}
+
+body[data-view="advisor"] .section-note {
+  color: rgba(236, 253, 245, 0.76);
+}
+
+body[data-view="advisor"] #advisorMode {
+  background: rgba(187, 247, 208, 0.13);
+  color: #bbf7d0;
+  border: 1px solid rgba(187, 247, 208, 0.28);
+}
+
+body[data-view="advisor"] .advisor-focus {
+  grid-template-columns: minmax(0, 1.55fr) minmax(330px, 0.7fr);
+  gap: 18px;
+}
+
+body[data-view="advisor"] .advisor-card,
+body[data-view="advisor"] .advisor-answer {
+  background: rgba(255, 255, 255, 0.075);
+  border-color: rgba(204, 251, 241, 0.18);
+  box-shadow: none;
+  backdrop-filter: blur(10px);
+}
+
+body[data-view="advisor"] .advisor-card h4,
+body[data-view="advisor"] .advisor-answer h4 {
+  color: #f8fffd;
+  font-size: 1.08rem;
+}
+
+body[data-view="advisor"] .advisor-question-card {
+  min-height: 500px;
+  display: grid;
+  align-content: start;
+}
+
+body[data-view="advisor"] .advisor-question-card label span {
+  color: #d9fff5;
+}
+
+body[data-view="advisor"] .advisor-question-card textarea {
+  min-height: 300px;
+  resize: vertical;
+  color: #ecfffb;
+  background:
+    linear-gradient(180deg, rgba(2, 21, 32, 0.98), rgba(5, 44, 49, 0.98));
+  border-color: rgba(94, 234, 212, 0.38);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+body[data-view="advisor"] .advisor-question-card textarea::placeholder {
+  color: rgba(197, 233, 227, 0.7);
+}
+
+body[data-view="advisor"] .preset-question {
+  color: #dffcf8;
+  background: rgba(6, 78, 90, 0.52);
+  border-color: rgba(125, 211, 252, 0.24);
+}
+
+body[data-view="advisor"] .preset-question:hover {
+  color: #ffffff;
+  background: rgba(14, 116, 144, 0.72);
+}
+
+body[data-view="advisor"] #askAdvisor {
+  width: fit-content;
+  min-width: 180px;
+  margin-top: 2px;
+  background: linear-gradient(135deg, #0f766e, #0e7490);
+}
+
+body[data-view="advisor"] .advisor-context-card {
+  min-height: 500px;
+  background: rgba(4, 26, 35, 0.58);
+}
+
+body[data-view="advisor"] .advisor-symbol {
+  position: relative;
+  overflow: hidden;
+  color: transparent;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.95) 0 10%, transparent 11%),
+    linear-gradient(135deg, #0f766e, #0f4c81);
+}
+
+body[data-view="advisor"] .advisor-symbol::after {
+  content: "*";
+  color: #ffffff;
+  font-size: 1.8rem;
+  font-weight: 900;
+}
+
+body[data-view="advisor"] .advisor-preview {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(204, 251, 241, 0.14);
+}
+
+body[data-view="advisor"] .advisor-preview div {
+  background: rgba(236, 253, 245, 0.09);
+  border: 1px solid rgba(204, 251, 241, 0.09);
+}
+
+body[data-view="advisor"] .advisor-preview strong {
+  color: #ffffff;
+  font-size: 1.05rem;
+}
+
+body[data-view="advisor"] .advisor-preview span {
+  color: rgba(236, 253, 245, 0.7);
+}
+
+body[data-view="advisor"] .advisor-answer {
+  margin-top: 18px;
+}
+
+body[data-view="advisor"] .answer-box {
+  min-height: 360px;
+  max-height: none;
+  overflow: auto;
+  color: #ecfffb;
+  background:
+    linear-gradient(180deg, rgba(2, 18, 27, 0.96), rgba(3, 35, 43, 0.96));
+  border-color: rgba(125, 211, 252, 0.25);
+  line-height: 1.68;
+  font-size: 1rem;
+}
+
+body[data-view="advisor"] #copyAdvisorAnswer {
+  color: #e9fffb;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(204, 251, 241, 0.18);
 }
 
 .checkbox-row {
@@ -2377,6 +2543,24 @@ td.amount-col {
   .advisor-card,
   .advisor-answer {
     padding: 14px;
+  }
+
+  body[data-view="advisor"] .content-panel[data-panel="advisor"] {
+    min-height: auto;
+    padding: 16px;
+  }
+
+  body[data-view="advisor"] .advisor-question-card,
+  body[data-view="advisor"] .advisor-context-card {
+    min-height: auto;
+  }
+
+  body[data-view="advisor"] .advisor-question-card textarea {
+    min-height: 230px;
+  }
+
+  body[data-view="advisor"] .answer-box {
+    min-height: 260px;
   }
 
   .daily-chart {

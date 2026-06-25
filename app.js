@@ -1268,14 +1268,19 @@ function renderAdvisorPreviewLegacy() {
 function renderAdvisorPreview() {
   const entries = advisorEntries();
   const context = buildAdvisorContext(entries);
-  const monthEntries = entries.filter((entry) => entry.date.startsWith(state.selectedMonth));
-  const monthSummary = summarize(monthEntries);
-  const rate = context.summary.earnings > 0 ? Math.round((context.summary.savings / context.summary.earnings) * 100) : 0;
+  const topCategory = context.topCategories[0]?.category || "No category yet";
+  const largestCost = context.largestCosts[0]?.category || "No large cost yet";
+  const latestEntry = entries
+    .slice()
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  const latestSignal = latestEntry ? formatDate(latestEntry.date) : "No entries yet";
   els.advisorDataPreview.innerHTML = `
-    <div><strong>${context.counts.entries}</strong><span>Total entries scanned</span></div>
-    <div><strong>${money(monthSummary.savings)}</strong><span>${formatMonthTitle(state.selectedMonth)} savings</span></div>
-    <div><strong>${money(context.summary.costs)}</strong><span>All-time costs</span></div>
-    <div><strong>${rate}%</strong><span>All-time savings rate</span></div>
+    <div><strong>${context.counts.entries}</strong><span>Saved entries available</span></div>
+    <div><strong>${topCategory}</strong><span>Main spending signal</span></div>
+    <div><strong>${context.counts.activeDays}</strong><span>Active finance days</span></div>
+    <div><strong>${largestCost}</strong><span>Largest-cost area</span></div>
+    <div><strong>${latestSignal}</strong><span>Latest tracked activity</span></div>
+    <div><strong>Auto</strong><span>The question chooses the focus</span></div>
   `;
   els.advisorMode.className = "report-status open";
   els.advisorMode.textContent = "Automatic context ready";
