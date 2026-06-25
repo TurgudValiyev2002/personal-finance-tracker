@@ -18,7 +18,7 @@ A clean browser app for tracking daily costs, earnings, and savings. The app is 
 - Opens detailed cost analysis and profit analysis in separate windows.
 - Shows seasonal month banners with lightweight animated effects, including summer sun movement and rainy months.
 - Automatically adapts to mobile screens with bottom navigation, card-style transaction rows, and phone-sized dialogs.
-- Includes a Personalized AI Advisor page with common questions, an AI backend proxy, Hugging Face fallback support, and a local fallback recommendation engine.
+- Includes a Personalized AI Advisor page with common questions, a Hugging Face backend proxy, model fallback support, and a local fallback recommendation engine.
 - Supports Firebase-ready login, registration, email activation, profile view, and cloud database sync.
 
 ## Secure AI Advisor Backend
@@ -27,13 +27,15 @@ The browser app does not contain an API key. The AI Advisor calls a Vercel serve
 
 Set these environment variables in Vercel:
 
-- `OPENAI_API_KEY` - optional OpenAI API key
-- `OPENAI_MODEL` - recommended: `gpt-4.1-mini`
-- `HF_TOKEN` - optional Hugging Face token with Inference Providers permission
-- `HF_MODEL` - recommended fallback: `openai/gpt-oss-120b:fastest`
+- `HF_TOKEN` - Hugging Face token with Inference Providers permission
+- `HF_MODEL` - primary model, for example `meta-llama/Llama-3.3-70B-Instruct`
+- `HF_FALLBACK_MODEL` - smaller fallback model, for example `mistralai/Mistral-7B-Instruct-v0.3`
 - `ALLOWED_ORIGIN` - `https://turgudvaliyev2002.github.io`
+- `OPENAI_API_KEY` - optional only if OpenAI fallback is wanted
+- `OPENAI_MODEL` - optional OpenAI fallback model, for example `gpt-4.1-mini`
+- `OPENAI_FALLBACK` - set to `true` only if OpenAI should be tried after Hugging Face
 
-The backend uses OpenAI first when `OPENAI_API_KEY` is available. If OpenAI has no quota and `HF_TOKEN` is set, it automatically tries Hugging Face. Do not commit real API keys or tokens to this repository.
+The backend tries Hugging Face first using the primary model, then the Hugging Face fallback model. If both hosted models fail, the browser keeps the app useful by showing the local finance recommendation fallback. Do not commit real API keys or tokens to this repository.
 - Saves data in the browser using `localStorage`.
 - Exports JSON backups and CSV transaction files.
 - Imports JSON backups when moving to another browser or computer.

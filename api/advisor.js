@@ -1,5 +1,6 @@
 const DEFAULT_MODEL = "gpt-4.1-mini";
-const DEFAULT_HF_MODEL = "openai/gpt-oss-120b:fastest";
+const DEFAULT_HF_MODEL = "meta-llama/Llama-3.3-70B-Instruct";
+const DEFAULT_HF_FALLBACK_MODEL = "mistralai/Mistral-7B-Instruct-v0.3";
 const MAX_BODY_BYTES = 120000;
 const MODEL_ALIASES = {
   "gpt-5.4-mini": "gpt-4.1-mini",
@@ -17,7 +18,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  if (!process.env.OPENAI_API_KEY && !process.env.HF_TOKEN) {
+  if (!process.env.HF_TOKEN && !process.env.OPENAI_API_KEY) {
     return res.status(503).json({ error: "Advisor service is not configured" });
   }
 
@@ -48,20 +49,17 @@ export default async function handler(req, res) {
 async function callAdvisorProvider(question, context) {
   const errors = [];
 
-  if (process.env.OPENAI_API_KEY) {
-    try {
-      return await callOpenAI(question, context);
-    } catch (error) {
-      errors.push(error);
-      if (!shouldTryHuggingFace(error)) {
-        throw error;
-      }
-    }
-  }
-
   if (process.env.HF_TOKEN) {
     try {
       return await callHuggingFace(question, context);
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+
+  if (process.env.OPENAI_API_KEY && process.env.OPENAI_FALLBACK === "true") {
+    try {
+      return await callOpenAI(question, context);
     } catch (error) {
       errors.push(error);
     }
@@ -110,7 +108,21 @@ async function callOpenAI(question, context) {
 }
 
 async function callHuggingFace(question, context) {
-  const model = String(process.env.HF_MODEL || DEFAULT_HF_MODEL).trim();
+  const models = huggingFaceModelChain();
+  const errors = [];
+
+  for (const model of models) {
+    try {
+      return await callHuggingFaceModel(model, question, context);
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+
+  throw errors[errors.length - 1] || new Error("No Hugging Face model is configured");
+}
+
+async function callHuggingFaceModel(model, question, context) {
   const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -137,7 +149,7 @@ async function callHuggingFace(question, context) {
 
   if (!response.ok) {
     const details = await response.text();
-    throw new Error(`Hugging Face error ${response.status}: ${details.slice(0, 500)}`);
+    throw new Error(`Hugging Face error ${response.status} for ${model}: ${details.slice(0, 500)}`);
   }
 
   const data = await response.json();
@@ -146,6 +158,19 @@ async function callHuggingFace(question, context) {
     throw new Error("No text returned from Hugging Face");
   }
   return text.trim();
+}
+
+function huggingFaceModelChain() {
+  const configured = [
+    process.env.HF_MODEL,
+    process.env.HF_FALLBACK_MODEL,
+    DEFAULT_HF_MODEL,
+    DEFAULT_HF_FALLBACK_MODEL
+  ]
+    .map((model) => String(model || "").trim())
+    .filter(Boolean);
+
+  return [...new Set(configured)];
 }
 
 function buildAdvisorPrompt(question, context) {
@@ -189,14 +214,6 @@ function publicFailureReason(error) {
     return "The Hugging Face free tier is exhausted or rate limited.";
   }
   return "The AI provider request did not complete.";
-}
-
-function shouldTryHuggingFace(error) {
-  const message = String(error?.message || "");
-  return message.includes("OpenAI error 429")
-    || message.includes("OpenAI error 402")
-    || message.includes("quota")
-    || message.includes("rate");
 }
 
 function extractResponseText(data) {
