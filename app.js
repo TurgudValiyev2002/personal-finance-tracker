@@ -170,6 +170,7 @@ const els = {
   profilePageAvatar: document.getElementById("profilePageAvatar"),
   profilePageName: document.getElementById("profilePageName"),
   profilePageMeta: document.getElementById("profilePageMeta"),
+  profileLogoutButton: document.getElementById("profileLogoutButton"),
   profileDetailsList: document.getElementById("profileDetailsList"),
   profileMonthlyTable: document.getElementById("profileMonthlyTable"),
   profileRecommendationList: document.getElementById("profileRecommendationList"),
@@ -1403,15 +1404,24 @@ function renderProfilePage() {
   if (!els.profileDetailsList) return;
   const profile = state.auth.profile || {};
   const user = state.auth.user;
+  const loggedIn = Boolean(user && state.auth.verified);
   const displayName = profile.displayName || [profile.name, profile.surname].filter(Boolean).join(" ") || user?.email || "Profile";
   const avatar = displayName.slice(0, 1).toUpperCase() || "U";
 
   els.profilePageAvatar.textContent = avatar;
   els.profilePageAvatar.dataset.gender = profile.gender || "";
-  els.profilePageName.textContent = displayName;
-  els.profilePageMeta.textContent = user
-    ? `${user.email || ""}${state.auth.verified ? " - Email activated" : " - Email activation needed"}`
+  els.profilePageName.textContent = loggedIn ? displayName : "Profile";
+  els.profilePageMeta.textContent = loggedIn
+    ? `${user.email || ""} - Cloud finance profile`
     : "Login to see account details and monthly finance summaries.";
+  els.profileLogoutButton.classList.toggle("hidden", !loggedIn);
+
+  if (!loggedIn) {
+    els.profileDetailsList.innerHTML = `<div><dt>Status</dt><dd>Please login to view profile details.</dd></div>`;
+    els.profileMonthlyTable.innerHTML = monthlySummaryTableHtml(6);
+    els.profileRecommendationList.innerHTML = `<p class="empty-state">Login and add transactions to get recommendations.</p>`;
+    return;
+  }
 
   const details = [
     ["Name", displayName],
@@ -1436,6 +1446,7 @@ function renderProfilePage() {
 
 function renderAll() {
   applyViewClass();
+  syncViewVisibility();
   applyTheme();
   applyMonthTheme();
   renderReportState();
@@ -1449,16 +1460,21 @@ function renderAll() {
   renderProfilePage();
 }
 
+function syncViewVisibility() {
+  els.navItems.forEach((item) => item.classList.toggle("active", item.dataset.view === state.activeView));
+  document.querySelectorAll("[data-panel]").forEach((panel) => {
+    panel.classList.toggle("hidden", panel.dataset.panel !== state.activeView);
+  });
+  els.entryActionRow.classList.toggle("hidden", !["dashboard", "transactions"].includes(state.activeView));
+}
+
 function switchView(view) {
   if (view === "advisor" && !requireLogin("to use AI recommendations")) return;
   if (view === "profile" && !requireLogin("to view your profile")) return;
 
   state.activeView = view;
   applyViewClass();
-  els.navItems.forEach((item) => item.classList.toggle("active", item.dataset.view === view));
-  document.querySelectorAll("[data-panel]").forEach((panel) => {
-    panel.classList.toggle("hidden", panel.dataset.panel !== view);
-  });
+  syncViewVisibility();
   els.pageTitle.textContent = {
     dashboard: "Overview",
     transactions: "Transactions",
@@ -1467,7 +1483,6 @@ function switchView(view) {
     profile: "Profile",
     backup: "Backup"
   }[view];
-  els.entryActionRow.classList.toggle("hidden", !["dashboard", "transactions"].includes(view));
   renderAll();
 }
 
@@ -1799,6 +1814,13 @@ function showWelcome(profile = {}) {
   setTimeout(() => els.welcomeOverlay.classList.add("hidden"), 1650);
 }
 
+function showLogoutAnimation() {
+  els.welcomeTitle.textContent = "Logged out";
+  els.welcomeSubtitle.textContent = "Private values are cleared from this screen.";
+  els.welcomeOverlay.classList.remove("hidden");
+  setTimeout(() => els.welcomeOverlay.classList.add("hidden"), 1450);
+}
+
 function renderAuth() {
   const user = state.auth.user;
   const profile = state.auth.profile || {};
@@ -1906,6 +1928,7 @@ async function logout() {
   try {
     await window.financeAuth?.logout();
     clearPrivateFinance();
+    showLogoutAnimation();
     closeAuthDialog();
     showToast("Logged out.");
   } catch (error) {
@@ -1942,6 +1965,7 @@ function applyCloudFinance(finance) {
   localStorage.setItem(REPORTS_KEY, JSON.stringify(state.reports));
   state.applyingCloudData = false;
   renderAll();
+  window.setTimeout(renderProfilePage, 0);
 }
 
 function clearPrivateFinance() {
@@ -2043,6 +2067,7 @@ function bindEvents() {
   els.refreshVerification.addEventListener("click", refreshVerification);
   els.resendVerification.addEventListener("click", resendVerification);
   els.logoutButton.addEventListener("click", logout);
+  els.profileLogoutButton.addEventListener("click", logout);
   mobileQuery.addEventListener("change", applyDeviceClass);
 }
 

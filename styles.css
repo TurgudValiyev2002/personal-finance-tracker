@@ -580,6 +580,15 @@ body.dark .report-box {
   margin-bottom: 16px;
 }
 
+body[data-view="profile"] .month-hero,
+body[data-view="profile"] .summary-grid {
+  display: none;
+}
+
+body[data-view="profile"] .workspace-grid {
+  margin-top: 14px;
+}
+
 .metric-card,
 .content-panel {
   background: var(--surface);
@@ -1606,29 +1615,30 @@ td.amount-col {
 .profile-page-hero {
   position: relative;
   display: grid;
-  grid-template-columns: 92px 1fr;
+  grid-template-columns: 108px 1fr auto;
   gap: 18px;
   align-items: center;
-  min-height: 170px;
+  min-height: 210px;
   overflow: hidden;
   margin-bottom: 16px;
-  padding: 24px;
+  padding: 30px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background:
-    radial-gradient(circle at 18% 20%, rgba(251, 191, 36, 0.22), transparent 24%),
-    linear-gradient(120deg, color-mix(in srgb, var(--teal) 12%, var(--surface)), color-mix(in srgb, var(--green) 10%, var(--surface)));
+    radial-gradient(circle at 16% 35%, rgba(251, 191, 36, 0.22), transparent 24%),
+    radial-gradient(circle at 82% 26%, rgba(20, 184, 166, 0.16), transparent 25%),
+    linear-gradient(120deg, color-mix(in srgb, var(--teal) 14%, var(--surface)), color-mix(in srgb, var(--green) 12%, var(--surface)));
 }
 
 .profile-page-avatar {
-  width: 92px;
-  height: 92px;
+  width: 108px;
+  height: 108px;
   display: grid;
   place-items: center;
   border-radius: 28px;
   background: linear-gradient(135deg, var(--teal), var(--green));
   color: #ffffff;
-  font-size: 2.6rem;
+  font-size: 3rem;
   font-weight: 950;
   box-shadow: 0 18px 40px rgba(16, 185, 129, 0.22);
 }
@@ -1647,7 +1657,7 @@ td.amount-col {
 }
 
 .profile-page-hero h3 {
-  font-size: 2.1rem;
+  font-size: 2.55rem;
 }
 
 .profile-page-hero p {
@@ -1686,7 +1696,7 @@ td.amount-col {
 
 .profile-page-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 0.8fr) minmax(360px, 1.2fr);
+  grid-template-columns: minmax(320px, 0.78fr) minmax(460px, 1.22fr);
   gap: 16px;
 }
 
@@ -1695,6 +1705,7 @@ td.amount-col {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
+  min-height: 230px;
 }
 
 .profile-info-card h4 {
@@ -1711,7 +1722,7 @@ td.amount-col {
   display: grid;
   grid-template-columns: 170px 1fr;
   gap: 12px;
-  padding-bottom: 9px;
+  padding: 10px 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1723,6 +1734,39 @@ td.amount-col {
 .profile-info-card dd {
   margin: 0;
   font-weight: 850;
+}
+
+.profile-card-note {
+  margin: -6px 0 12px;
+  color: var(--muted);
+}
+
+.profile-logout {
+  position: relative;
+  z-index: 1;
+  min-width: 118px;
+}
+
+#profileMonthlyTable {
+  overflow: auto;
+}
+
+#profileMonthlyTable table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#profileMonthlyTable th,
+#profileMonthlyTable td {
+  padding: 11px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+#profileMonthlyTable th {
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-transform: uppercase;
 }
 
 .profile-recommendations {
