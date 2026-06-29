@@ -1324,6 +1324,143 @@ td.amount-col {
   color: var(--muted);
 }
 
+.demo-button {
+  width: 100%;
+  margin-top: 10px;
+  border: 1px dashed color-mix(in srgb, var(--teal) 42%, var(--line));
+  background: color-mix(in srgb, var(--teal) 8%, var(--surface));
+  color: var(--teal-dark);
+  border-radius: var(--radius);
+  min-height: 42px;
+  font-weight: 900;
+}
+
+.goal-progress-panel {
+  margin-top: 12px;
+}
+
+.goal-progress-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.35fr);
+  gap: 14px;
+  align-items: center;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 8% 20%, rgba(20, 184, 166, 0.14), transparent 28%),
+    var(--surface);
+}
+
+.goal-progress-card.complete {
+  border-color: color-mix(in srgb, var(--green) 42%, var(--line));
+}
+
+.goal-progress-card strong,
+.goal-progress-card p,
+.goal-progress-meter span {
+  display: block;
+}
+
+.goal-progress-card p {
+  margin: 5px 0 0;
+  color: var(--muted);
+}
+
+.goal-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-right: 9px;
+  border-radius: 50%;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--teal), var(--green));
+  font-weight: 900;
+}
+
+.goal-progress-meter {
+  display: grid;
+  gap: 8px;
+}
+
+.goal-bar {
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-2) 72%, var(--line));
+}
+
+.goal-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--teal), var(--green));
+}
+
+.category-suggestion {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--teal) 35%, var(--line));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--teal) 8%, var(--surface));
+  color: var(--ink);
+}
+
+.category-suggestion button {
+  border: 0;
+  border-radius: 7px;
+  padding: 7px 9px;
+  background: var(--teal);
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.repeat-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-weight: 850;
+}
+
+.repeat-control input {
+  width: 18px;
+  height: 18px;
+}
+
+.goal-list,
+.recurring-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.goal-row,
+.recurring-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.goal-row span,
+.recurring-row span {
+  display: block;
+  margin: 4px 0 7px;
+  color: var(--muted);
+}
+
 .advisor-grid,
 .advisor-focus {
   display: grid;

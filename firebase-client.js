@@ -72,6 +72,8 @@ if (!config || !config.apiKey || !config.authDomain || !config.projectId || !con
       entries: Array.isArray(payload.entries) ? payload.entries : [],
       reports: payload.reports && typeof payload.reports === "object" ? payload.reports : {},
       limits: payload.limits && typeof payload.limits === "object" ? payload.limits : {},
+      goals: payload.goals && typeof payload.goals === "object" ? payload.goals : {},
+      recurringRules: Array.isArray(payload.recurringRules) ? payload.recurringRules : [],
       notices: payload.notices && typeof payload.notices === "object" ? payload.notices : {},
       updatedAt: serverTimestamp()
     }, { merge: true });

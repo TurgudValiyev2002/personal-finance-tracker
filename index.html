@@ -42,6 +42,7 @@
 
         <section class="auth-panel" aria-label="Account">
           <button id="authButton" class="auth-button" type="button">Login / Register</button>
+          <button id="demoModeButton" class="demo-button" type="button">Try demo mode</button>
           <p id="authStatus">Cloud sync not connected.</p>
         </section>
       </aside>
@@ -116,6 +117,7 @@
               </select>
             </div>
             <div id="recentMonthsTable" class="recent-months" aria-label="Current and previous three months summary"></div>
+            <div id="goalProgressPanel" class="goal-progress-panel" aria-label="Monthly savings goal progress"></div>
             <div id="dailyChart" class="daily-chart" aria-label="Daily costs and earnings chart"></div>
             <div id="dailyList" class="daily-list"></div>
           </article>
@@ -301,6 +303,30 @@
               </section>
             </div>
 
+            <div class="settings-grid">
+              <section class="settings-card">
+                <div class="section-heading compact-heading">
+                  <h4>Savings goal</h4>
+                  <span class="section-note">Example: save EUR 800 in July.</span>
+                </div>
+                <div class="form-grid">
+                  <label><span>Goal month</span><input id="goalMonth" type="month"></label>
+                  <label><span>Target savings</span><input id="goalAmount" type="number" min="0" step="0.01" placeholder="800"></label>
+                </div>
+                <button id="saveGoal" class="primary-button" type="button">Save savings goal</button>
+                <div id="goalList" class="goal-list"></div>
+              </section>
+
+              <section class="settings-card">
+                <div class="section-heading compact-heading">
+                  <h4>Recurring entries</h4>
+                  <button id="applyRecurringNow" class="secondary-button compact" type="button">Apply to selected month</button>
+                </div>
+                <p class="section-note">Use this for rent, salary, internet, subscriptions, and other monthly repeated transactions.</p>
+                <div id="recurringList" class="recurring-list"></div>
+              </section>
+            </div>
+
             <section class="settings-card category-limit-card">
               <div class="section-heading compact-heading">
                 <h4>Category limits</h4>
@@ -330,9 +356,10 @@
             <div class="backup-grid">
               <button id="exportJson" class="secondary-button backup-action" type="button"><span>Full database backup</span><strong>Export JSON</strong></button>
               <button id="exportCsv" class="secondary-button backup-action" type="button"><span>Spreadsheet copy</span><strong>Export CSV</strong></button>
+              <button id="exportPdfReport" class="secondary-button backup-action" type="button"><span>Submitted monthly report</span><strong>Export PDF</strong></button>
               <label class="file-import backup-action"><span>Restore database</span><strong>Import JSON backup</strong><input id="importJson" type="file" accept="application/json"></label>
             </div>
-            <p class="backup-note">Data is saved only in this browser. Export a JSON backup regularly if this is important financial data.</p>
+            <p class="backup-note">Logged-in data is saved in Firebase cloud storage. JSON export is still useful as a private backup copy.</p>
           </article>
 
           <article class="content-panel hidden info-page about-page" data-panel="about">
@@ -422,6 +449,8 @@
         </div>
         <label><span>Category</span><select id="category" required></select></label>
         <label><span>Description</span><input id="description" type="text" maxlength="120" placeholder="Food, hostel, salary, ticket..." required></label>
+        <div id="categorySuggestion" class="category-suggestion hidden"></div>
+        <label class="repeat-control"><input id="repeatMonthly" type="checkbox"><span>Repeat this entry monthly</span></label>
         <div class="modal-actions">
           <button id="cancelEdit" class="ghost-button" type="button">Cancel</button>
           <button id="saveEntry" class="primary-button" type="submit">Save entry</button>

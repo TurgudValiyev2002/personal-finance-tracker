@@ -47,7 +47,12 @@ const state = {
   entries: [],
   reports: {},
   limits: defaultLimits(),
+  goals: {},
+  recurringRules: [],
   notices: defaultNotices(),
+  demo: {
+    active: false
+  },
   prefs: loadPrefs(),
   activeView: "dashboard",
   selectedMonth: monthKey(new Date()),
@@ -100,6 +105,8 @@ const els = {
   amount: document.getElementById("amount"),
   category: document.getElementById("category"),
   description: document.getElementById("description"),
+  categorySuggestion: document.getElementById("categorySuggestion"),
+  repeatMonthly: document.getElementById("repeatMonthly"),
   typeRadios: document.querySelectorAll("input[name='type']"),
   monthCosts: document.getElementById("monthCosts"),
   monthEarnings: document.getElementById("monthEarnings"),
@@ -137,6 +144,7 @@ const els = {
   extraStats: document.getElementById("extraStats"),
   exportJson: document.getElementById("exportJson"),
   exportCsv: document.getElementById("exportCsv"),
+  exportPdfReport: document.getElementById("exportPdfReport"),
   importJson: document.getElementById("importJson"),
   advisorMode: document.getElementById("advisorMode"),
   advisorQuestion: document.getElementById("advisorQuestion"),
@@ -146,6 +154,7 @@ const els = {
   advisorModelName: document.getElementById("advisorModelName"),
   copyAdvisorAnswer: document.getElementById("copyAdvisorAnswer"),
   authButton: document.getElementById("authButton"),
+  demoModeButton: document.getElementById("demoModeButton"),
   authStatus: document.getElementById("authStatus"),
   authDialog: document.getElementById("authDialog"),
   closeAuthDialog: document.getElementById("closeAuthDialog"),
@@ -205,6 +214,13 @@ const els = {
   saveCategoryLimit: document.getElementById("saveCategoryLimit"),
   limitStatusList: document.getElementById("limitStatusList"),
   categoryLimitList: document.getElementById("categoryLimitList"),
+  goalProgressPanel: document.getElementById("goalProgressPanel"),
+  goalMonth: document.getElementById("goalMonth"),
+  goalAmount: document.getElementById("goalAmount"),
+  saveGoal: document.getElementById("saveGoal"),
+  goalList: document.getElementById("goalList"),
+  recurringList: document.getElementById("recurringList"),
+  applyRecurringNow: document.getElementById("applyRecurringNow"),
   limitDialog: document.getElementById("limitDialog"),
   limitDialogTitle: document.getElementById("limitDialogTitle"),
   limitDialogBody: document.getElementById("limitDialogBody"),
@@ -304,15 +320,39 @@ function cleanNotices(value) {
   };
 }
 
+function cleanGoals(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value)
+    .filter(([month, amount]) => /^\d{4}-\d{2}$/.test(month) && Number(amount) > 0)
+    .map(([month, amount]) => [month, Number(Number(amount).toFixed(2))]));
+}
+
+function cleanRecurringRules(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((rule) => rule && typeof rule === "object")
+    .map((rule) => ({
+      id: typeof rule.id === "string" ? rule.id : uid(),
+      type: rule.type === "earning" ? "earning" : "cost",
+      amount: Math.max(0, Number(rule.amount) || 0),
+      category: typeof rule.category === "string" ? rule.category : "Other",
+      description: typeof rule.description === "string" ? rule.description : "",
+      day: Math.min(31, Math.max(1, Number(rule.day) || 1)),
+      startMonth: /^\d{4}-\d{2}$/.test(rule.startMonth || "") ? rule.startMonth : state.selectedMonth,
+      active: rule.active !== false
+    }))
+    .filter((rule) => rule.amount > 0 && rule.description.trim());
+}
+
 function saveEntries() {
-  if (isLoggedIn()) {
+  if (isLoggedIn() && !state.demo.active) {
     localStorage.setItem(ENTRIES_KEY, JSON.stringify(state.entries));
   }
   scheduleCloudSave();
 }
 
 function saveReports() {
-  if (isLoggedIn()) {
+  if (isLoggedIn() && !state.demo.active) {
     localStorage.setItem(REPORTS_KEY, JSON.stringify(state.reports));
   }
   scheduleCloudSave();
@@ -329,18 +369,21 @@ function savePrefs() {
 function scheduleCloudSave() {
   if (state.applyingCloudData) return;
   if (!isLoggedIn()) return;
+  if (state.demo.active) return;
   clearTimeout(cloudSaveTimer);
   cloudSaveTimer = setTimeout(saveFinanceToCloud, 650);
 }
 
 async function saveFinanceToCloud() {
-  if (!isLoggedIn() || !window.financeAuth?.saveFinance) return;
+  if (!isLoggedIn() || state.demo.active || !window.financeAuth?.saveFinance) return;
   try {
     await window.financeAuth.saveFinance({
       entries: state.entries,
       reports: state.reports,
       limits: state.limits,
-      notices: state.notices
+      notices: state.notices,
+      goals: state.goals,
+      recurringRules: state.recurringRules
     });
     renderAuth();
   } catch (error) {
@@ -349,6 +392,7 @@ async function saveFinanceToCloud() {
 }
 
 function isLoggedIn() {
+  if (state.demo.active) return true;
   return Boolean(state.auth.configured && state.auth.user && state.auth.verified);
 }
 
@@ -403,6 +447,47 @@ function categoriesForType(type) {
   return type === "earning" ? earningCategories : costCategories;
 }
 
+function suggestCategory(description, type = selectedType()) {
+  const text = description.toLowerCase();
+  if (!text.trim()) return "";
+  const rules = type === "earning"
+    ? [
+        ["Salary", ["salary", "wage", "paycheck", "pay cheque", "job"]],
+        ["Scholarship", ["scholarship", "grant", "stipend"]],
+        ["Freelance", ["freelance", "client", "contract", "project payment"]],
+        ["Family Support", ["mom", "dad", "family", "parent"]],
+        ["Refund", ["refund", "cashback", "reimbursement"]]
+      ]
+    : [
+        ["Accommodation", ["rent", "dorm", "hostel", "hotel", "airbnb", "accommodation", "room"]],
+        ["Transport", ["train", "tram", "bus", "metro", "taxi", "uber", "bolt", "fuel", "ticket", "airport", "car rental"]],
+        ["Internet", ["internet", "wifi", "sim", "mobile", "phone bill", "data plan"]],
+        ["Food", ["billa", "spar", "grocery", "groceries", "market", "supermarket", "bread", "food", "lunch", "dinner", "breakfast"]],
+        ["Restaurant", ["restaurant", "cafe", "coffee", "pizza", "burger", "kebab", "takeaway"]],
+        ["Entertainment", ["cinema", "netflix", "game", "karting", "concert", "park", "museum"]],
+        ["Travel", ["flight", "booking", "trip", "travel", "visa", "luggage"]],
+        ["Health", ["doctor", "pharmacy", "medicine", "hospital", "dentist"]],
+        ["Education", ["university", "course", "book", "gpt", "tuition", "education"]]
+      ];
+  const match = rules.find(([, keywords]) => keywords.some((keyword) => text.includes(keyword)));
+  return match?.[0] || "";
+}
+
+function renderCategorySuggestion() {
+  if (!els.categorySuggestion) return;
+  const suggestion = suggestCategory(els.description.value || "", selectedType());
+  if (!suggestion || suggestion === els.category.value) {
+    els.categorySuggestion.classList.add("hidden");
+    els.categorySuggestion.innerHTML = "";
+    return;
+  }
+  els.categorySuggestion.classList.remove("hidden");
+  els.categorySuggestion.innerHTML = `
+    <span>Suggested category: <strong>${escapeHtml(suggestion)}</strong></span>
+    <button type="button" data-suggest-category="${escapeHtml(suggestion)}">Use suggestion</button>
+  `;
+}
+
 function populateCategorySelect(select, categories, includeAll = false) {
   select.innerHTML = "";
   if (includeAll) {
@@ -416,6 +501,7 @@ function setEntryType(type) {
     radio.checked = radio.value === type;
   });
   populateCategorySelect(els.category, categoriesForType(type));
+  renderCategorySuggestion();
 }
 
 function monthBounds(month) {
@@ -509,6 +595,50 @@ function isMonthSubmitted(month) {
 
 function canSubmitMonth(month) {
   return todayIso() > monthBounds(month).end && !isMonthSubmitted(month);
+}
+
+function recurringDateForMonth(rule, month) {
+  const [year, m] = month.split("-").map(Number);
+  const day = Math.min(Number(rule.day) || 1, monthBounds(month).days);
+  return localIso(new Date(year, m - 1, day));
+}
+
+function addRecurringRuleFromEntry(entry) {
+  const rule = {
+    id: uid(),
+    type: entry.type,
+    amount: entry.amount,
+    category: entry.category,
+    description: entry.description,
+    day: Number(entry.date.slice(8, 10)),
+    startMonth: monthKey(entry.date),
+    active: true
+  };
+  state.recurringRules.push(rule);
+  return rule;
+}
+
+function applyRecurringForMonth(month = state.selectedMonth) {
+  if (!isLoggedIn() || isMonthSubmitted(month)) return 0;
+  let added = 0;
+  cleanRecurringRules(state.recurringRules).forEach((rule) => {
+    if (!rule.active || month < rule.startMonth) return;
+    const alreadyAdded = state.entries.some((entry) => entry.recurringRuleId === rule.id && entry.recurringMonth === month);
+    if (alreadyAdded) return;
+    state.entries.push({
+      id: uid(),
+      type: rule.type,
+      date: recurringDateForMonth(rule, month),
+      amount: Number(Number(rule.amount).toFixed(2)),
+      category: rule.category,
+      description: rule.description,
+      recurringRuleId: rule.id,
+      recurringMonth: month
+    });
+    added += 1;
+  });
+  if (added > 0) saveEntries();
+  return added;
 }
 
 function applyTheme() {
@@ -672,6 +802,31 @@ function renderRecentMonthsTable() {
         </tbody>
       </table>
     </div>
+  `;
+}
+
+function renderGoalProgressPanel() {
+  if (!els.goalProgressPanel) return;
+  const summary = summarize(entriesInMonth());
+  const goal = Number(state.goals[state.selectedMonth]) || 0;
+  const progress = goal > 0 ? Math.max(0, Math.min(100, (summary.savings / goal) * 100)) : 0;
+  const status = goal > 0
+    ? summary.savings >= goal
+      ? "Goal reached"
+      : `${money(Math.max(0, goal - summary.savings))} left`
+    : "No target yet";
+  els.goalProgressPanel.innerHTML = `
+    <article class="goal-progress-card ${goal > 0 && summary.savings >= goal ? "complete" : ""}">
+      <div>
+        <span class="goal-icon">◎</span>
+        <strong>${goal > 0 ? `${monthName(state.selectedMonth)} savings goal` : "Monthly savings goal"}</strong>
+        <p>${goal > 0 ? `${money(summary.savings)} saved toward ${money(goal)}.` : "Set a savings target in Settings to track progress for this month."}</p>
+      </div>
+      <div class="goal-progress-meter">
+        <span>${status}</span>
+        <div class="goal-bar"><i style="width:${progress}%"></i></div>
+      </div>
+    </article>
   `;
 }
 
@@ -1702,8 +1857,93 @@ function renderSettingsPage() {
   els.globalWeeklyLimit.value = state.limits.global.weekly || "";
   els.globalMonthlyLimit.value = state.limits.global.monthly || "";
   populateCategorySelect(els.limitCategory, costCategories);
+  if (els.goalMonth) els.goalMonth.value = state.selectedMonth;
+  if (els.goalAmount) els.goalAmount.value = state.goals[state.selectedMonth] || "";
   renderLimitStatus();
   renderCategoryLimits();
+  renderGoalList();
+  renderRecurringList();
+}
+
+function saveSavingsGoal() {
+  if (!requireLogin("to save savings goals")) return;
+  const month = els.goalMonth.value || state.selectedMonth;
+  const amount = Math.max(0, Number(els.goalAmount.value) || 0);
+  if (!/^\d{4}-\d{2}$/.test(month) || amount <= 0) {
+    showToast("Choose a month and a positive savings goal.");
+    return;
+  }
+  state.goals[month] = Number(amount.toFixed(2));
+  saveFinanceState();
+  renderAll();
+  showToast(`${monthName(month)} savings goal saved.`);
+}
+
+function renderGoalList() {
+  if (!els.goalList) return;
+  const rows = Object.entries(state.goals).sort(([a], [b]) => b.localeCompare(a));
+  if (!rows.length) {
+    els.goalList.innerHTML = `<p class="empty-state">No savings goals yet.</p>`;
+    return;
+  }
+  els.goalList.innerHTML = rows.map(([month, amount]) => {
+    const summary = summarize(state.entries.filter((entry) => entry.date.startsWith(month)));
+    const progress = Math.max(0, Math.min(100, (summary.savings / amount) * 100));
+    return `
+      <article class="goal-row">
+        <div>
+          <strong>${monthName(month)}</strong>
+          <span>${money(summary.savings)} of ${money(amount)}</span>
+          <div class="goal-bar"><i style="width:${progress}%"></i></div>
+        </div>
+        <button class="tiny-button delete" type="button" data-goal-month="${month}">Remove</button>
+      </article>
+    `;
+  }).join("");
+}
+
+function handleGoalListClick(event) {
+  const button = event.target.closest("button[data-goal-month]");
+  if (!button) return;
+  delete state.goals[button.dataset.goalMonth];
+  saveFinanceState();
+  renderAll();
+  showToast("Savings goal removed.");
+}
+
+function renderRecurringList() {
+  if (!els.recurringList) return;
+  const rules = cleanRecurringRules(state.recurringRules);
+  state.recurringRules = rules;
+  if (!rules.length) {
+    els.recurringList.innerHTML = `<p class="empty-state">No recurring entries yet. Tick "Repeat this entry monthly" when adding rent, salary, internet, or subscriptions.</p>`;
+    return;
+  }
+  els.recurringList.innerHTML = rules.map((rule) => `
+    <article class="recurring-row">
+      <div>
+        <strong>${escapeHtml(rule.description)}</strong>
+        <span>${rule.type} - ${escapeHtml(rule.category)} - ${money(rule.amount)} - every month from day ${rule.day}</span>
+      </div>
+      <button class="tiny-button delete" type="button" data-recurring-id="${rule.id}">Remove</button>
+    </article>
+  `).join("");
+}
+
+function handleRecurringListClick(event) {
+  const button = event.target.closest("button[data-recurring-id]");
+  if (!button) return;
+  state.recurringRules = state.recurringRules.filter((rule) => rule.id !== button.dataset.recurringId);
+  saveFinanceState();
+  renderAll();
+  showToast("Recurring entry removed.");
+}
+
+function applyRecurringNow() {
+  if (!requireLogin("to apply recurring entries")) return;
+  const count = applyRecurringForMonth(state.selectedMonth);
+  renderAll();
+  showToast(count ? `${count} recurring ${count === 1 ? "entry" : "entries"} added.` : "No new recurring entries to add.");
 }
 
 function limitRows() {
@@ -1899,6 +2139,7 @@ function acknowledgePeriodReview() {
 }
 
 function renderAll() {
+  applyRecurringForMonth(state.selectedMonth);
   applyViewClass();
   syncViewVisibility();
   applyTheme();
@@ -1906,6 +2147,7 @@ function renderAll() {
   renderReportState();
   renderSummary();
   renderRecentMonthsTable();
+  renderGoalProgressPanel();
   renderDailyChart();
   renderDailyList();
   renderTransactions();
@@ -1981,13 +2223,23 @@ function resetForm(entry = null) {
     els.amount.value = entry.amount;
     els.category.value = entry.category;
     els.description.value = entry.description;
+    if (els.repeatMonthly) {
+      els.repeatMonthly.checked = false;
+      els.repeatMonthly.disabled = true;
+    }
+    renderCategorySuggestion();
     return;
   }
   els.editingId.value = "";
   els.entryDate.value = defaultEntryDate();
   els.amount.value = "";
   els.description.value = "";
+  if (els.repeatMonthly) {
+    els.repeatMonthly.checked = false;
+    els.repeatMonthly.disabled = false;
+  }
   setEntryType("cost");
+  renderCategorySuggestion();
 }
 
 function defaultEntryDate() {
@@ -2031,9 +2283,16 @@ function submitEntry(event) {
       showToast("This entry belongs to a submitted month.");
       return;
     }
+    entry.recurringRuleId = state.entries[existingIndex].recurringRuleId;
+    entry.recurringMonth = state.entries[existingIndex].recurringMonth;
     state.entries[existingIndex] = entry;
   } else {
     state.entries.push(entry);
+    if (els.repeatMonthly?.checked) {
+      const rule = addRecurringRuleFromEntry(entry);
+      entry.recurringRuleId = rule.id;
+      entry.recurringMonth = monthKey(entry.date);
+    }
   }
 
   saveEntries();
@@ -2093,7 +2352,9 @@ function exportJson() {
       entries: state.entries,
       reports: state.reports,
       limits: state.limits,
-      notices: state.notices
+      notices: state.notices,
+      goals: state.goals,
+      recurringRules: state.recurringRules
     }, null, 2),
     "application/json"
   );
@@ -2141,6 +2402,8 @@ function importJson(file) {
       state.reports = parsed.reports && typeof parsed.reports === "object" ? parsed.reports : {};
       state.limits = cleanLimits(parsed.limits);
       state.notices = cleanNotices(parsed.notices);
+      state.goals = cleanGoals(parsed.goals);
+      state.recurringRules = cleanRecurringRules(parsed.recurringRules);
       saveEntries();
       saveReports();
       saveFinanceState();
@@ -2153,6 +2416,144 @@ function importJson(file) {
     }
   };
   reader.readAsText(file);
+}
+
+function demoEntries(month = state.selectedMonth) {
+  return [
+    { id: uid(), type: "earning", date: `${month}-01`, amount: 3210, category: "Salary", description: "Demo monthly salary" },
+    { id: uid(), type: "cost", date: `${month}-02`, amount: 720, category: "Accommodation", description: "Demo dorm rent" },
+    { id: uid(), type: "cost", date: `${month}-05`, amount: 48, category: "Internet", description: "Demo mobile internet" },
+    { id: uid(), type: "cost", date: `${month}-08`, amount: 42, category: "Transport", description: "Demo train ticket" },
+    { id: uid(), type: "cost", date: `${month}-12`, amount: 64, category: "Food", description: "Demo Billa groceries" },
+    { id: uid(), type: "cost", date: `${month}-18`, amount: 35, category: "Restaurant", description: "Demo cafe dinner" },
+    { id: uid(), type: "cost", date: `${month}-22`, amount: 28, category: "Entertainment", description: "Demo cinema" }
+  ];
+}
+
+function startDemoMode() {
+  const salaryRuleId = uid();
+  const rentRuleId = uid();
+  const internetRuleId = uid();
+  state.demo.active = true;
+  state.auth = {
+    configured: true,
+    checked: true,
+    user: {
+      email: "demo@finance-tracker.local",
+      displayName: "Demo User"
+    },
+    profile: {
+      name: "Demo",
+      surname: "User",
+      displayName: "Demo User",
+      gender: "prefer-not",
+      birthDate: "1998-01-01",
+      country: "Demo Country",
+      originCountry: "Demo Origin"
+    },
+    verified: true
+  };
+  state.entries = demoEntries().map((entry) => {
+    if (entry.description.includes("salary")) return { ...entry, recurringRuleId: salaryRuleId, recurringMonth: state.selectedMonth };
+    if (entry.description.includes("rent")) return { ...entry, recurringRuleId: rentRuleId, recurringMonth: state.selectedMonth };
+    if (entry.description.includes("internet")) return { ...entry, recurringRuleId: internetRuleId, recurringMonth: state.selectedMonth };
+    return entry;
+  });
+  state.reports = {};
+  state.limits = cleanLimits({
+    global: { daily: 120, weekly: 450, monthly: 1500 },
+    categories: { Food: { daily: 0, weekly: 100, monthly: 300 } }
+  });
+  state.goals = { [state.selectedMonth]: 1500 };
+  state.recurringRules = [
+    { id: salaryRuleId, type: "earning", amount: 3210, category: "Salary", description: "Demo monthly salary", day: 1, startMonth: state.selectedMonth, active: true },
+    { id: rentRuleId, type: "cost", amount: 720, category: "Accommodation", description: "Demo dorm rent", day: 2, startMonth: state.selectedMonth, active: true },
+    { id: internetRuleId, type: "cost", amount: 48, category: "Internet", description: "Demo mobile internet", day: 5, startMonth: state.selectedMonth, active: true }
+  ];
+  state.notices = defaultNotices();
+  state.activeView = "dashboard";
+  localStorage.removeItem(ENTRIES_KEY);
+  localStorage.removeItem(REPORTS_KEY);
+  showWelcome(state.auth.profile);
+  renderAll();
+  showToast("Demo mode opened with fake data.");
+}
+
+function exitDemoMode() {
+  state.demo.active = false;
+  state.auth = {
+    configured: Boolean(window.financeAuth?.configured),
+    checked: true,
+    user: null,
+    profile: null,
+    verified: false
+  };
+  clearPrivateFinance();
+  showLogoutAnimation();
+  showToast("Demo mode closed.");
+}
+
+function exportMonthlyPdfReport() {
+  if (!requireLogin("to export monthly PDF reports")) return;
+  if (!isMonthSubmitted(state.selectedMonth)) {
+    showToast("Submit and lock the month before exporting the final PDF report.");
+    return;
+  }
+  const entries = entriesInMonth().sort((a, b) => a.date.localeCompare(b.date));
+  const summary = summarize(entries);
+  const byCategory = groupSum(entries.filter((entry) => entry.type === "cost"), "category");
+  const topCategories = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const goal = Number(state.goals[state.selectedMonth]) || 0;
+  const popup = window.open("", "_blank", "width=900,height=1100");
+  if (!popup) {
+    showToast("Popup blocked. Allow popups to export the PDF report.");
+    return;
+  }
+  popup.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <title>${monthName(state.selectedMonth)} finance report</title>
+        <style>
+          body{font-family:Arial,sans-serif;margin:34px;color:#12211f}
+          h1{margin:0 0 6px;font-size:30px}
+          .muted{color:#64746f}
+          .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:22px 0}
+          .card{border:1px solid #dce7e4;border-radius:8px;padding:14px}
+          .card strong{display:block;font-size:22px;margin-top:8px}
+          table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}
+          th,td{border-bottom:1px solid #e4ecea;padding:8px;text-align:left}
+          th{background:#eef6f4}
+          .positive{color:#168a55;font-weight:700}.negative{color:#c24132;font-weight:700}
+          .bar{height:10px;border-radius:999px;background:#e8f1ef;overflow:hidden}
+          .bar i{display:block;height:100%;background:#168a55}
+          @media print{button{display:none}body{margin:20px}}
+        </style>
+      </head>
+      <body>
+        <button onclick="window.print()">Save as PDF / Print</button>
+        <h1>${monthName(state.selectedMonth)} Finance Report</h1>
+        <p class="muted">Submitted on ${formatDate(state.reports[state.selectedMonth].submittedAt.slice(0, 10))}</p>
+        <div class="grid">
+          <div class="card">Costs<strong class="negative">${money(summary.costs)}</strong><span class="muted">${summary.costCount} entries</span></div>
+          <div class="card">Earnings<strong>${money(summary.earnings)}</strong><span class="muted">${summary.earningCount} entries</span></div>
+          <div class="card">Savings<strong class="${summary.savings >= 0 ? "positive" : "negative"}">${money(summary.savings)}</strong><span class="muted">${summary.earnings > 0 ? Math.round((summary.savings / summary.earnings) * 100) : 0}% saved</span></div>
+        </div>
+        <h2>Savings goal</h2>
+        <p>${goal > 0 ? `${money(summary.savings)} saved toward ${money(goal)}.` : "No savings goal was set for this month."}</p>
+        <div class="bar"><i style="width:${goal > 0 ? Math.max(0, Math.min(100, (summary.savings / goal) * 100)) : 0}%"></i></div>
+        <h2>Top cost categories</h2>
+        <table><tbody>${topCategories.length ? topCategories.map(([category, amount]) => `<tr><td>${escapeHtml(category)}</td><td>${money(amount)}</td></tr>`).join("") : `<tr><td>No costs</td><td>${money(0)}</td></tr>`}</tbody></table>
+        <h2>Transactions</h2>
+        <table>
+          <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Description</th><th>Amount</th></tr></thead>
+          <tbody>${entries.map((entry) => `<tr><td>${formatDate(entry.date)}</td><td>${entry.type}</td><td>${escapeHtml(entry.category)}</td><td>${escapeHtml(entry.description)}</td><td>${entry.type === "earning" ? "+" : "-"}${money(entry.amount)}</td></tr>`).join("")}</tbody>
+        </table>
+      </body>
+    </html>
+  `);
+  popup.document.close();
+  popup.focus();
 }
 
 function openAuthDialog(mode = "login", reason = "") {
@@ -2293,18 +2694,26 @@ function renderAuth() {
   const profile = state.auth.profile || {};
   const configured = state.auth.configured;
 
-  if (!configured) {
+  if (state.demo.active) {
+    els.authButton.textContent = "Demo Profile";
+    els.authStatus.textContent = "Demo data only.";
+    if (els.demoModeButton) els.demoModeButton.textContent = "Exit demo mode";
+  } else if (!configured) {
     els.authButton.textContent = "Connect login";
     els.authStatus.textContent = "Firebase setup needed.";
+    if (els.demoModeButton) els.demoModeButton.textContent = "Try demo mode";
   } else if (user && state.auth.verified) {
     els.authButton.textContent = profile.name ? `${profile.name} Profile` : "Profile";
     els.authStatus.textContent = "Cloud sync active.";
+    if (els.demoModeButton) els.demoModeButton.textContent = "Try demo mode";
   } else if (user) {
     els.authButton.textContent = "Activate email";
     els.authStatus.textContent = "Email verification needed.";
+    if (els.demoModeButton) els.demoModeButton.textContent = "Try demo mode";
   } else {
     els.authButton.textContent = "Login / Register";
     els.authStatus.textContent = "Login to sync data.";
+    if (els.demoModeButton) els.demoModeButton.textContent = "Try demo mode";
   }
 
   if (!user) return;
@@ -2528,6 +2937,11 @@ function resizeProfilePhoto(file) {
 }
 
 async function logout() {
+  if (state.demo.active) {
+    exitDemoMode();
+    closeAuthDialog();
+    return;
+  }
   try {
     await window.financeAuth?.logout();
     clearPrivateFinance();
@@ -2545,6 +2959,8 @@ function applyCloudFinance(finance) {
     state.reports = {};
     state.limits = defaultLimits();
     state.notices = defaultNotices();
+    state.goals = {};
+    state.recurringRules = [];
     localStorage.removeItem(ENTRIES_KEY);
     localStorage.removeItem(REPORTS_KEY);
     renderAll();
@@ -2553,12 +2969,16 @@ function applyCloudFinance(finance) {
 
   const cloudEntries = Array.isArray(finance.entries) ? finance.entries.filter(isValidEntry) : [];
   const cloudReports = finance.reports && typeof finance.reports === "object" ? finance.reports : {};
-  const hasCloudData = cloudEntries.length || Object.keys(cloudReports).length;
+  const cloudGoals = cleanGoals(finance.goals);
+  const cloudRecurringRules = cleanRecurringRules(finance.recurringRules);
+  const hasCloudData = cloudEntries.length || Object.keys(cloudReports).length || Object.keys(cloudGoals).length || cloudRecurringRules.length;
   if (!hasCloudData) {
     state.entries = [];
     state.reports = {};
     state.limits = cleanLimits(finance.limits);
     state.notices = cleanNotices(finance.notices);
+    state.goals = cloudGoals;
+    state.recurringRules = cloudRecurringRules;
     localStorage.removeItem(ENTRIES_KEY);
     localStorage.removeItem(REPORTS_KEY);
     renderAll();
@@ -2570,6 +2990,8 @@ function applyCloudFinance(finance) {
   state.reports = cloudReports;
   state.limits = cleanLimits(finance.limits);
   state.notices = cleanNotices(finance.notices);
+  state.goals = cloudGoals;
+  state.recurringRules = cloudRecurringRules;
   localStorage.setItem(ENTRIES_KEY, JSON.stringify(state.entries));
   localStorage.setItem(REPORTS_KEY, JSON.stringify(state.reports));
   state.applyingCloudData = false;
@@ -2582,6 +3004,8 @@ function clearPrivateFinance() {
   state.reports = {};
   state.limits = defaultLimits();
   state.notices = defaultNotices();
+  state.goals = {};
+  state.recurringRules = [];
   localStorage.removeItem(ENTRIES_KEY);
   localStorage.removeItem(REPORTS_KEY);
   if (state.activeView === "advisor" || state.activeView === "profile") {
@@ -2591,6 +3015,7 @@ function clearPrivateFinance() {
 }
 
 function handleAuthChange(event) {
+  if (state.demo.active) return;
   const detail = event.detail || {};
   state.auth = {
     configured: Boolean(detail.configured),
@@ -2636,7 +3061,17 @@ function bindEvents() {
   els.openAddEntry.addEventListener("click", () => openEntryDialog("add"));
   els.submitMonth.addEventListener("click", submitMonthlyReport);
   els.typeRadios.forEach((radio) => {
-    radio.addEventListener("change", () => populateCategorySelect(els.category, categoriesForType(selectedType())));
+    radio.addEventListener("change", () => {
+      populateCategorySelect(els.category, categoriesForType(selectedType()));
+      renderCategorySuggestion();
+    });
+  });
+  els.description?.addEventListener("input", renderCategorySuggestion);
+  els.categorySuggestion?.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-suggest-category]");
+    if (!button) return;
+    els.category.value = button.dataset.suggestCategory;
+    renderCategorySuggestion();
   });
   els.entryForm.addEventListener("submit", submitEntry);
   els.closeDialog.addEventListener("click", closeEntryDialog);
@@ -2662,6 +3097,7 @@ function bindEvents() {
   els.transactionTable.addEventListener("click", handleTableAction);
   els.exportJson.addEventListener("click", exportJson);
   els.exportCsv.addEventListener("click", exportCsv);
+  els.exportPdfReport?.addEventListener("click", exportMonthlyPdfReport);
   els.importJson.addEventListener("change", (event) => importJson(event.target.files[0]));
   els.authButton.addEventListener("click", () => {
     if (isLoggedIn()) {
@@ -2669,6 +3105,14 @@ function bindEvents() {
       return;
     }
     openAuthDialog(state.auth.user ? "profile" : "login");
+  });
+  els.demoModeButton?.addEventListener("click", () => {
+    if (state.demo.active) {
+      exitDemoMode();
+      return;
+    }
+    startDemoMode();
+    closeAuthDialog();
   });
   els.closeAuthDialog.addEventListener("click", closeAuthDialog);
   els.showRegister.addEventListener("click", () => setAuthMode("register"));
@@ -2684,6 +3128,10 @@ function bindEvents() {
   els.saveGlobalLimits?.addEventListener("click", saveGlobalLimits);
   els.saveCategoryLimit?.addEventListener("click", saveCategoryLimit);
   els.categoryLimitList?.addEventListener("click", handleCategoryLimitClick);
+  els.saveGoal?.addEventListener("click", saveSavingsGoal);
+  els.goalList?.addEventListener("click", handleGoalListClick);
+  els.applyRecurringNow?.addEventListener("click", applyRecurringNow);
+  els.recurringList?.addEventListener("click", handleRecurringListClick);
   els.enableNotifications?.addEventListener("click", enableBrowserNotifications);
   els.closeLimitDialog?.addEventListener("click", acknowledgeLimitWarning);
   els.ackLimitDialog?.addEventListener("click", acknowledgeLimitWarning);
