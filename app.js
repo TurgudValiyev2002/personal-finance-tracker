@@ -46,6 +46,8 @@ const seasonProfiles = {
 const state = {
   entries: [],
   reports: {},
+  limits: defaultLimits(),
+  notices: defaultNotices(),
   prefs: loadPrefs(),
   activeView: "dashboard",
   selectedMonth: monthKey(new Date()),
@@ -62,6 +64,9 @@ const state = {
 
 const mobileQuery = window.matchMedia("(max-width: 760px)");
 let cloudSaveTimer = null;
+let limitWarningOpen = false;
+let periodReviewOpen = false;
+let pendingLimitWarning = null;
 
 const els = {
   navItems: document.querySelectorAll(".nav-item"),
@@ -180,6 +185,37 @@ const els = {
   profileMiniChart: document.getElementById("profileMiniChart"),
   profileTransactionsList: document.getElementById("profileTransactionsList"),
   profileRecommendationList: document.getElementById("profileRecommendationList"),
+  settingsForm: document.getElementById("settingsForm"),
+  settingsName: document.getElementById("settingsName"),
+  settingsSurname: document.getElementById("settingsSurname"),
+  settingsGender: document.getElementById("settingsGender"),
+  settingsBirthDate: document.getElementById("settingsBirthDate"),
+  settingsCountry: document.getElementById("settingsCountry"),
+  settingsOriginCountry: document.getElementById("settingsOriginCountry"),
+  settingsEmail: document.getElementById("settingsEmail"),
+  settingsFeedback: document.getElementById("settingsFeedback"),
+  enableNotifications: document.getElementById("enableNotifications"),
+  globalDailyLimit: document.getElementById("globalDailyLimit"),
+  globalWeeklyLimit: document.getElementById("globalWeeklyLimit"),
+  globalMonthlyLimit: document.getElementById("globalMonthlyLimit"),
+  saveGlobalLimits: document.getElementById("saveGlobalLimits"),
+  limitCategory: document.getElementById("limitCategory"),
+  limitPeriod: document.getElementById("limitPeriod"),
+  categoryLimitAmount: document.getElementById("categoryLimitAmount"),
+  saveCategoryLimit: document.getElementById("saveCategoryLimit"),
+  limitStatusList: document.getElementById("limitStatusList"),
+  categoryLimitList: document.getElementById("categoryLimitList"),
+  limitDialog: document.getElementById("limitDialog"),
+  limitDialogTitle: document.getElementById("limitDialogTitle"),
+  limitDialogBody: document.getElementById("limitDialogBody"),
+  closeLimitDialog: document.getElementById("closeLimitDialog"),
+  ackLimitDialog: document.getElementById("ackLimitDialog"),
+  periodReviewDialog: document.getElementById("periodReviewDialog"),
+  periodReviewTitle: document.getElementById("periodReviewTitle"),
+  periodReviewBody: document.getElementById("periodReviewBody"),
+  periodReviewModel: document.getElementById("periodReviewModel"),
+  closePeriodReview: document.getElementById("closePeriodReview"),
+  ackPeriodReview: document.getElementById("ackPeriodReview"),
   verifyNotice: document.getElementById("verifyNotice"),
   refreshVerification: document.getElementById("refreshVerification"),
   resendVerification: document.getElementById("resendVerification"),
@@ -221,6 +257,53 @@ function loadPrefs() {
   }
 }
 
+function defaultLimits() {
+  return {
+    global: {
+      daily: 0,
+      weekly: 0,
+      monthly: 0
+    },
+    categories: {}
+  };
+}
+
+function defaultNotices() {
+  return {
+    limitWarnings: {},
+    periodReviews: {}
+  };
+}
+
+function cleanLimits(value) {
+  const base = defaultLimits();
+  if (!value || typeof value !== "object") return base;
+  const global = value.global && typeof value.global === "object" ? value.global : {};
+  const categories = value.categories && typeof value.categories === "object" ? value.categories : {};
+  return {
+    global: {
+      daily: Number(global.daily) > 0 ? Number(global.daily) : 0,
+      weekly: Number(global.weekly) > 0 ? Number(global.weekly) : 0,
+      monthly: Number(global.monthly) > 0 ? Number(global.monthly) : 0
+    },
+    categories: Object.fromEntries(Object.entries(categories).map(([category, periods]) => [
+      category,
+      {
+        daily: Number(periods?.daily) > 0 ? Number(periods.daily) : 0,
+        weekly: Number(periods?.weekly) > 0 ? Number(periods.weekly) : 0,
+        monthly: Number(periods?.monthly) > 0 ? Number(periods.monthly) : 0
+      }
+    ]))
+  };
+}
+
+function cleanNotices(value) {
+  return {
+    limitWarnings: value?.limitWarnings && typeof value.limitWarnings === "object" ? value.limitWarnings : {},
+    periodReviews: value?.periodReviews && typeof value.periodReviews === "object" ? value.periodReviews : {}
+  };
+}
+
 function saveEntries() {
   if (isLoggedIn()) {
     localStorage.setItem(ENTRIES_KEY, JSON.stringify(state.entries));
@@ -232,6 +315,10 @@ function saveReports() {
   if (isLoggedIn()) {
     localStorage.setItem(REPORTS_KEY, JSON.stringify(state.reports));
   }
+  scheduleCloudSave();
+}
+
+function saveFinanceState() {
   scheduleCloudSave();
 }
 
@@ -251,7 +338,9 @@ async function saveFinanceToCloud() {
   try {
     await window.financeAuth.saveFinance({
       entries: state.entries,
-      reports: state.reports
+      reports: state.reports,
+      limits: state.limits,
+      notices: state.notices
     });
     renderAuth();
   } catch (error) {
@@ -371,6 +460,47 @@ function summarize(entries) {
     costCount: entries.filter((entry) => entry.type === "cost").length,
     earningCount: entries.filter((entry) => entry.type === "earning").length
   };
+}
+
+function startOfWeek(date) {
+  const d = new Date(`${date}T00:00:00`);
+  const day = d.getDay() || 7;
+  d.setDate(d.getDate() - day + 1);
+  return localIso(d);
+}
+
+function endOfWeek(date) {
+  const d = new Date(`${startOfWeek(date)}T00:00:00`);
+  d.setDate(d.getDate() + 6);
+  return localIso(d);
+}
+
+function periodBounds(period, reference = todayIso()) {
+  if (period === "daily") {
+    return { start: reference, end: reference, label: formatDate(reference) };
+  }
+  if (period === "weekly") {
+    const start = startOfWeek(reference);
+    const end = endOfWeek(reference);
+    return { start, end, label: `${formatShortDate(start)} - ${formatShortDate(end)}` };
+  }
+  const month = reference.length === 7 ? reference : reference.slice(0, 7);
+  const bounds = monthBounds(month);
+  return { start: bounds.start, end: bounds.end, label: monthName(month) };
+}
+
+function entriesInPeriod(period, reference = todayIso(), category = "") {
+  const bounds = period === "monthly" ? periodBounds(period, state.selectedMonth) : periodBounds(period, reference);
+  return state.entries.filter((entry) => {
+    if (entry.type !== "cost") return false;
+    if (entry.date < bounds.start || entry.date > bounds.end) return false;
+    if (category && entry.category !== category) return false;
+    return true;
+  });
+}
+
+function periodCost(period, reference = todayIso(), category = "") {
+  return entriesInPeriod(period, reference, category).reduce((sum, entry) => sum + Number(entry.amount), 0);
 }
 
 function isMonthSubmitted(month) {
@@ -1542,6 +1672,232 @@ function renderProfileTransactionsList() {
   `).join("");
 }
 
+function renderSettingsPage() {
+  if (!els.settingsForm) return;
+  const profile = state.auth.profile || {};
+  const user = state.auth.user;
+  const loggedIn = isLoggedIn();
+
+  [els.settingsName, els.settingsSurname, els.settingsGender, els.settingsBirthDate, els.settingsCountry, els.settingsOriginCountry, els.settingsEmail].forEach((input) => {
+    if (input) input.disabled = !loggedIn;
+  });
+  if (els.settingsForm.querySelector("button")) {
+    els.settingsForm.querySelector("button").disabled = !loggedIn;
+  }
+
+  els.settingsName.value = profile.name || "";
+  els.settingsSurname.value = profile.surname || "";
+  els.settingsGender.value = profile.gender || "";
+  els.settingsBirthDate.value = profile.birthDate || "";
+  els.settingsCountry.value = profile.country || profile.residenceCountry || "";
+  els.settingsOriginCountry.value = profile.originCountry || "";
+  els.settingsEmail.value = profile.pendingEmail || user?.email || "";
+  if (els.settingsFeedback) {
+    const pending = profile.pendingEmail ? `Pending email change: ${profile.pendingEmail}. Activate that inbox before the login email changes.` : "";
+    els.settingsFeedback.textContent = pending || (loggedIn ? "Settings are ready." : "Login to edit account settings.");
+    els.settingsFeedback.className = `auth-feedback ${pending ? "warn" : "success"}`;
+  }
+
+  els.globalDailyLimit.value = state.limits.global.daily || "";
+  els.globalWeeklyLimit.value = state.limits.global.weekly || "";
+  els.globalMonthlyLimit.value = state.limits.global.monthly || "";
+  populateCategorySelect(els.limitCategory, costCategories);
+  renderLimitStatus();
+  renderCategoryLimits();
+}
+
+function limitRows() {
+  const rows = [];
+  ["daily", "weekly", "monthly"].forEach((period) => {
+    const limit = Number(state.limits.global[period]) || 0;
+    if (!limit) return;
+    const bounds = period === "monthly" ? periodBounds(period, state.selectedMonth) : periodBounds(period);
+    rows.push({
+      key: `global:${period}:${bounds.start}:${bounds.end}`,
+      label: `${period[0].toUpperCase()}${period.slice(1)} cost limit`,
+      scope: "All categories",
+      period,
+      bounds,
+      amount: periodCost(period),
+      limit
+    });
+  });
+
+  Object.entries(state.limits.categories || {}).forEach(([category, periods]) => {
+    ["daily", "weekly", "monthly"].forEach((period) => {
+      const limit = Number(periods[period]) || 0;
+      if (!limit) return;
+      const bounds = period === "monthly" ? periodBounds(period, state.selectedMonth) : periodBounds(period);
+      rows.push({
+        key: `category:${category}:${period}:${bounds.start}:${bounds.end}`,
+        label: `${category} ${period} limit`,
+        scope: category,
+        period,
+        bounds,
+        amount: periodCost(period, todayIso(), category),
+        limit
+      });
+    });
+  });
+  return rows;
+}
+
+function limitTone(row) {
+  const ratio = row.limit > 0 ? row.amount / row.limit : 0;
+  if (ratio >= 1) return "danger";
+  if (ratio >= 0.8) return "warning";
+  return "safe";
+}
+
+function renderLimitStatus() {
+  if (!els.limitStatusList) return;
+  const rows = limitRows();
+  if (!rows.length) {
+    els.limitStatusList.innerHTML = `<p class="empty-state">No spending limits yet. Add a daily, weekly, monthly, or category limit above.</p>`;
+    return;
+  }
+  els.limitStatusList.innerHTML = rows.map((row) => {
+    const ratio = row.limit > 0 ? Math.min(140, (row.amount / row.limit) * 100) : 0;
+    const tone = limitTone(row);
+    return `
+      <article class="limit-row ${tone}">
+        <div>
+          <strong>${escapeHtml(row.label)}</strong>
+          <span>${escapeHtml(row.bounds.label)} - ${money(row.amount)} of ${money(row.limit)}</span>
+        </div>
+        <div class="limit-progress"><i style="width:${Math.min(100, ratio)}%"></i></div>
+        <b>${Math.round(ratio)}%</b>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderCategoryLimits() {
+  if (!els.categoryLimitList) return;
+  const rows = [];
+  Object.entries(state.limits.categories || {}).forEach(([category, periods]) => {
+    Object.entries(periods).forEach(([period, limit]) => {
+      if (Number(limit) > 0) rows.push({ category, period, limit: Number(limit) });
+    });
+  });
+  if (!rows.length) {
+    els.categoryLimitList.innerHTML = `<p class="empty-state">No category-specific limits yet.</p>`;
+    return;
+  }
+  els.categoryLimitList.innerHTML = rows.map((row) => `
+    <article class="category-limit-pill">
+      <span><strong>${escapeHtml(row.category)}</strong> ${escapeHtml(row.period)} limit: ${money(row.limit)}</span>
+      <button class="tiny-button delete" type="button" data-limit-category="${escapeHtml(row.category)}" data-limit-period="${escapeHtml(row.period)}">Remove</button>
+    </article>
+  `).join("");
+}
+
+function maybeShowLimitWarning() {
+  if (!isLoggedIn() || limitWarningOpen || !els.limitDialog) return;
+  const candidate = limitRows().find((row) => {
+    const tone = limitTone(row);
+    if (tone === "safe") return false;
+    const key = `${row.key}:${tone}:${Math.floor(row.amount)}`;
+    return !state.notices.limitWarnings[key];
+  });
+  if (!candidate) return;
+  const tone = limitTone(candidate);
+  const key = `${candidate.key}:${tone}:${Math.floor(candidate.amount)}`;
+  pendingLimitWarning = { ...candidate, tone, noticeKey: key };
+  limitWarningOpen = true;
+  els.limitDialogTitle.textContent = tone === "danger" ? "Limit passed" : "Limit almost reached";
+  els.limitDialogBody.textContent = `${candidate.label}: ${money(candidate.amount)} used from ${money(candidate.limit)} in ${candidate.bounds.label}.`;
+  if (!els.limitDialog.open) els.limitDialog.showModal();
+  sendBrowserLimitNotification(candidate, tone);
+}
+
+function acknowledgeLimitWarning() {
+  if (pendingLimitWarning) {
+    state.notices.limitWarnings[pendingLimitWarning.noticeKey] = new Date().toISOString();
+    saveFinanceState();
+  }
+  pendingLimitWarning = null;
+  limitWarningOpen = false;
+  if (els.limitDialog?.open) els.limitDialog.close();
+}
+
+function sendBrowserLimitNotification(row, tone) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  try {
+    new Notification(tone === "danger" ? "Finance limit passed" : "Finance limit warning", {
+      body: `${row.label}: ${money(row.amount)} of ${money(row.limit)}`
+    });
+  } catch {
+    // Browser notifications are optional.
+  }
+}
+
+function completedPeriodReviews() {
+  const today = todayIso();
+  const reviews = [];
+  const weeks = new Map();
+  const months = new Map();
+  state.entries.forEach((entry) => {
+    const weekStart = startOfWeek(entry.date);
+    const weekEnd = endOfWeek(entry.date);
+    const weekKey = `week:${weekStart}:${weekEnd}`;
+    if (!weeks.has(weekKey)) weeks.set(weekKey, { type: "week", key: weekKey, start: weekStart, end: weekEnd, entries: [] });
+    weeks.get(weekKey).entries.push(entry);
+
+    const month = entry.date.slice(0, 7);
+    const bounds = monthBounds(month);
+    const monthKeyValue = `month:${month}`;
+    if (!months.has(monthKeyValue)) months.set(monthKeyValue, { type: "month", key: monthKeyValue, start: bounds.start, end: bounds.end, entries: [] });
+    months.get(monthKeyValue).entries.push(entry);
+  });
+
+  [...weeks.values(), ...months.values()].forEach((period) => {
+    if (period.end >= today) return;
+    if (!period.entries.length) return;
+    if (state.notices.periodReviews[period.key]) return;
+    reviews.push(period);
+  });
+  return reviews.sort((a, b) => a.end.localeCompare(b.end));
+}
+
+async function maybeShowPeriodReview() {
+  if (!isLoggedIn() || periodReviewOpen || !els.periodReviewDialog) return;
+  const review = completedPeriodReviews()[0];
+  if (!review) return;
+  periodReviewOpen = true;
+  const periodName = review.type === "week"
+    ? `Week review: ${formatShortDate(review.start)} - ${formatShortDate(review.end)}`
+    : `Monthly review: ${monthName(review.start.slice(0, 7))}`;
+  els.periodReviewTitle.textContent = periodName;
+  els.periodReviewBody.textContent = "Preparing finance recommendation...";
+  els.periodReviewModel.textContent = "Model: preparing";
+  els.periodReviewDialog.dataset.reviewKey = review.key;
+  els.periodReviewDialog.showModal();
+
+  const context = buildAdvisorContext(review.entries);
+  const question = review.type === "week"
+    ? "Give a short weekly finance review with key risks, strongest category, savings interpretation, and next week advice."
+    : "Give a short monthly finance review with key risks, strongest category, savings interpretation, and next month advice.";
+  try {
+    const result = await callAdvisorApi(question, context);
+    els.periodReviewBody.textContent = result.answer;
+    els.periodReviewModel.textContent = `Model: ${result.model || "hosted AI"}`;
+  } catch {
+    els.periodReviewBody.textContent = localAdvisorAnswer(question, context);
+    els.periodReviewModel.textContent = "Model: local heuristic fallback";
+  }
+}
+
+function acknowledgePeriodReview() {
+  const key = els.periodReviewDialog?.dataset.reviewKey;
+  if (key) {
+    state.notices.periodReviews[key] = new Date().toISOString();
+    saveFinanceState();
+  }
+  periodReviewOpen = false;
+  if (els.periodReviewDialog?.open) els.periodReviewDialog.close();
+}
+
 function renderAll() {
   applyViewClass();
   syncViewVisibility();
@@ -1556,6 +1912,9 @@ function renderAll() {
   renderStatistics();
   renderAdvisor();
   renderProfilePage();
+  renderSettingsPage();
+  maybeShowLimitWarning();
+  window.setTimeout(maybeShowPeriodReview, 0);
 }
 
 function syncViewVisibility() {
@@ -1569,6 +1928,7 @@ function syncViewVisibility() {
 function switchView(view) {
   if (view === "advisor" && !requireLogin("to use AI recommendations")) return;
   if (view === "profile" && !requireLogin("to view your profile")) return;
+  if (view === "settings" && !requireLogin("to edit account settings and limits")) return;
 
   state.activeView = view;
   applyViewClass();
@@ -1579,6 +1939,7 @@ function switchView(view) {
     statistics: "Statistics",
     advisor: "AI Advisor",
     profile: "Profile",
+    settings: "Settings",
     backup: "Backup",
     about: "About",
     contact: "Contact"
@@ -1730,7 +2091,9 @@ function exportJson() {
       version: 2,
       exportedAt: new Date().toISOString(),
       entries: state.entries,
-      reports: state.reports
+      reports: state.reports,
+      limits: state.limits,
+      notices: state.notices
     }, null, 2),
     "application/json"
   );
@@ -1776,8 +2139,11 @@ function importJson(file) {
       const clean = imported.filter(isValidEntry);
       state.entries = clean;
       state.reports = parsed.reports && typeof parsed.reports === "object" ? parsed.reports : {};
+      state.limits = cleanLimits(parsed.limits);
+      state.notices = cleanNotices(parsed.notices);
       saveEntries();
       saveReports();
+      saveFinanceState();
       renderAll();
       showToast(`Imported ${clean.length} entries.`);
     } catch {
@@ -1903,6 +2269,7 @@ function authErrorMessage(error) {
   if (code.includes("too-many-requests")) return "Too many attempts. Please wait a little and try again.";
   if (code.includes("email-already-in-use")) return "This email already has an account. Please login instead.";
   if (code.includes("weak-password")) return "Password is too weak. Use at least 6 characters.";
+  if (code.includes("requires-recent-login")) return "For security, please logout, login again, then change the email.";
   return error?.message || "Something went wrong. Please try again.";
 }
 
@@ -2024,6 +2391,97 @@ async function resendVerification() {
   }
 }
 
+async function submitSettings(event) {
+  event.preventDefault();
+  if (!requireLogin("to update account settings")) return;
+  const profile = {
+    ...(state.auth.profile || {}),
+    name: els.settingsName.value.trim(),
+    surname: els.settingsSurname.value.trim(),
+    gender: els.settingsGender.value,
+    birthDate: els.settingsBirthDate.value,
+    country: els.settingsCountry.value.trim(),
+    originCountry: els.settingsOriginCountry.value.trim(),
+    email: els.settingsEmail.value.trim()
+  };
+  profile.displayName = `${profile.name} ${profile.surname}`.trim();
+
+  try {
+    const result = await window.financeAuth?.updateAccountSettings(profile);
+    if (result?.pendingEmail) {
+      showToast("Verification email sent to the new address. Check Inbox and Spam.");
+      els.settingsFeedback.textContent = `Pending email change: ${result.pendingEmail}. The login email changes only after activation.`;
+      els.settingsFeedback.className = "auth-feedback warn";
+    } else {
+      showToast("Settings saved.");
+      els.settingsFeedback.textContent = "Settings saved successfully.";
+      els.settingsFeedback.className = "auth-feedback success";
+    }
+  } catch (error) {
+    const message = authErrorMessage(error);
+    showToast(message);
+    els.settingsFeedback.textContent = message;
+    els.settingsFeedback.className = "auth-feedback error";
+  }
+}
+
+function saveGlobalLimits() {
+  if (!requireLogin("to save spending limits")) return;
+  state.limits.global = {
+    daily: Math.max(0, Number(els.globalDailyLimit.value) || 0),
+    weekly: Math.max(0, Number(els.globalWeeklyLimit.value) || 0),
+    monthly: Math.max(0, Number(els.globalMonthlyLimit.value) || 0)
+  };
+  saveFinanceState();
+  renderSettingsPage();
+  showToast("Global limits saved.");
+}
+
+function saveCategoryLimit() {
+  if (!requireLogin("to save category limits")) return;
+  const category = els.limitCategory.value;
+  const period = els.limitPeriod.value;
+  const amount = Math.max(0, Number(els.categoryLimitAmount.value) || 0);
+  if (!category || !period || amount <= 0) {
+    showToast("Choose category, period, and a positive amount.");
+    return;
+  }
+  state.limits.categories[category] = {
+    daily: Number(state.limits.categories[category]?.daily) || 0,
+    weekly: Number(state.limits.categories[category]?.weekly) || 0,
+    monthly: Number(state.limits.categories[category]?.monthly) || 0,
+    [period]: amount
+  };
+  els.categoryLimitAmount.value = "";
+  saveFinanceState();
+  renderSettingsPage();
+  showToast(`${category} ${period} limit saved.`);
+}
+
+function handleCategoryLimitClick(event) {
+  const button = event.target.closest("button[data-limit-category]");
+  if (!button) return;
+  const category = button.dataset.limitCategory;
+  const period = button.dataset.limitPeriod;
+  if (!state.limits.categories[category]) return;
+  state.limits.categories[category][period] = 0;
+  if (!Object.values(state.limits.categories[category]).some((value) => Number(value) > 0)) {
+    delete state.limits.categories[category];
+  }
+  saveFinanceState();
+  renderSettingsPage();
+  showToast("Category limit removed.");
+}
+
+async function enableBrowserNotifications() {
+  if (!("Notification" in window)) {
+    showToast("This browser does not support notifications.");
+    return;
+  }
+  const permission = await Notification.requestPermission();
+  showToast(permission === "granted" ? "Browser alerts enabled." : "Browser alerts were not enabled.");
+}
+
 async function updateProfilePhoto(file) {
   if (!file || !isLoggedIn()) return;
   try {
@@ -2085,6 +2543,8 @@ function applyCloudFinance(finance) {
   if (!finance) {
     state.entries = [];
     state.reports = {};
+    state.limits = defaultLimits();
+    state.notices = defaultNotices();
     localStorage.removeItem(ENTRIES_KEY);
     localStorage.removeItem(REPORTS_KEY);
     renderAll();
@@ -2097,6 +2557,8 @@ function applyCloudFinance(finance) {
   if (!hasCloudData) {
     state.entries = [];
     state.reports = {};
+    state.limits = cleanLimits(finance.limits);
+    state.notices = cleanNotices(finance.notices);
     localStorage.removeItem(ENTRIES_KEY);
     localStorage.removeItem(REPORTS_KEY);
     renderAll();
@@ -2106,6 +2568,8 @@ function applyCloudFinance(finance) {
   state.applyingCloudData = true;
   state.entries = cloudEntries;
   state.reports = cloudReports;
+  state.limits = cleanLimits(finance.limits);
+  state.notices = cleanNotices(finance.notices);
   localStorage.setItem(ENTRIES_KEY, JSON.stringify(state.entries));
   localStorage.setItem(REPORTS_KEY, JSON.stringify(state.reports));
   state.applyingCloudData = false;
@@ -2116,6 +2580,8 @@ function applyCloudFinance(finance) {
 function clearPrivateFinance() {
   state.entries = [];
   state.reports = {};
+  state.limits = defaultLimits();
+  state.notices = defaultNotices();
   localStorage.removeItem(ENTRIES_KEY);
   localStorage.removeItem(REPORTS_KEY);
   if (state.activeView === "advisor" || state.activeView === "profile") {
@@ -2214,6 +2680,23 @@ function bindEvents() {
   els.logoutButton.addEventListener("click", logout);
   els.profileLogoutButton.addEventListener("click", logout);
   els.profilePhotoInput.addEventListener("change", (event) => updateProfilePhoto(event.target.files[0]));
+  els.settingsForm?.addEventListener("submit", submitSettings);
+  els.saveGlobalLimits?.addEventListener("click", saveGlobalLimits);
+  els.saveCategoryLimit?.addEventListener("click", saveCategoryLimit);
+  els.categoryLimitList?.addEventListener("click", handleCategoryLimitClick);
+  els.enableNotifications?.addEventListener("click", enableBrowserNotifications);
+  els.closeLimitDialog?.addEventListener("click", acknowledgeLimitWarning);
+  els.ackLimitDialog?.addEventListener("click", acknowledgeLimitWarning);
+  els.limitDialog?.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    acknowledgeLimitWarning();
+  });
+  els.closePeriodReview?.addEventListener("click", acknowledgePeriodReview);
+  els.ackPeriodReview?.addEventListener("click", acknowledgePeriodReview);
+  els.periodReviewDialog?.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    acknowledgePeriodReview();
+  });
   mobileQuery.addEventListener("change", applyDeviceClass);
 }
 
@@ -2245,6 +2728,7 @@ function init() {
   els.monthInput.value = state.selectedMonth;
   populateCategorySelect(els.category, costCategories);
   populateCategorySelect(els.filterCategory, [...new Set([...costCategories, ...earningCategories])], true);
+  if (els.limitCategory) populateCategorySelect(els.limitCategory, costCategories);
   bindEvents();
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     navigator.serviceWorker.register("service-worker.js").catch(() => {});

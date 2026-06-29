@@ -585,6 +585,9 @@ body[data-view="profile"] .summary-grid {
   display: none;
 }
 
+body[data-view="settings"] .month-subtitle,
+body[data-view="settings"] .month-hero,
+body[data-view="settings"] .summary-grid,
 body[data-view="advisor"] .month-subtitle,
 body[data-view="advisor"] .month-hero,
 body[data-view="advisor"] .summary-grid,
@@ -601,6 +604,7 @@ body[data-view="profile"] .workspace-grid {
   margin-top: 14px;
 }
 
+body[data-view="settings"] .workspace-grid,
 body[data-view="advisor"] .workspace-grid {
   margin-top: 14px;
 }
@@ -1961,6 +1965,12 @@ body[data-view="advisor"] #copyAdvisorAnswer {
   color: var(--green);
 }
 
+.auth-feedback.warn {
+  border: 1px solid color-mix(in srgb, var(--amber) 35%, var(--line));
+  background: color-mix(in srgb, var(--amber) 14%, var(--surface));
+  color: #8a5a0a;
+}
+
 .profile-panel {
   display: grid;
   gap: 14px;
@@ -2317,6 +2327,194 @@ body[data-view="advisor"] #copyAdvisorAnswer {
 
 .profile-transactions-list b.earning {
   color: var(--green);
+}
+
+.settings-page {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 88% 20%, rgba(34, 197, 94, 0.22), transparent 18%),
+    linear-gradient(110deg, var(--green-soft), rgba(14, 116, 144, 0.12));
+  overflow: hidden;
+}
+
+.settings-hero::after {
+  content: "";
+  position: absolute;
+  width: 160px;
+  height: 160px;
+  right: 28px;
+  top: -58px;
+  border-radius: 50%;
+  border: 18px solid rgba(255, 255, 255, 0.35);
+  animation: softSpin 12s linear infinite;
+}
+
+.settings-icon {
+  display: grid;
+  place-items: center;
+  width: 82px;
+  height: 82px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--green), var(--teal));
+  color: #fff;
+  font-size: 2rem;
+  font-weight: 950;
+  box-shadow: 0 18px 42px rgba(15, 118, 110, 0.28);
+}
+
+.settings-hero h3,
+.settings-hero p {
+  margin: 0;
+}
+
+.settings-hero h3 {
+  font-size: 2rem;
+}
+
+.settings-hero p {
+  max-width: 760px;
+  color: var(--muted);
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 16px;
+}
+
+.settings-card {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.settings-form,
+.settings-card {
+  display: grid;
+  gap: 14px;
+}
+
+.category-limit-form {
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) minmax(120px, 0.6fr) minmax(150px, 0.8fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.limit-status-list,
+.category-limit-list {
+  display: grid;
+  gap: 10px;
+}
+
+.limit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(180px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.limit-row strong,
+.limit-row span {
+  display: block;
+}
+
+.limit-row span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.limit-progress {
+  height: 12px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+}
+
+.limit-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+}
+
+.limit-row.warning {
+  border-color: color-mix(in srgb, var(--amber) 42%, var(--line));
+  background: var(--amber-soft);
+}
+
+.limit-row.warning .limit-progress i {
+  background: var(--amber);
+}
+
+.limit-row.danger {
+  border-color: color-mix(in srgb, var(--red) 45%, var(--line));
+  background: var(--red-soft);
+}
+
+.limit-row.danger .limit-progress i {
+  background: var(--red);
+}
+
+.category-limit-pill {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.limit-dialog,
+.period-review-dialog {
+  width: min(720px, calc(100vw - 28px));
+  border: 0;
+  border-radius: 14px;
+  padding: 22px;
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.limit-dialog::backdrop,
+.period-review-dialog::backdrop {
+  background: rgba(4, 14, 18, 0.55);
+  backdrop-filter: blur(5px);
+}
+
+.period-review-body {
+  min-height: 220px;
+  margin: 16px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+@keyframes softSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .profile-transactions-list b.cost {
@@ -2974,6 +3172,31 @@ body[data-view="advisor"] #copyAdvisorAnswer {
   .profile-info-card dl div {
     grid-template-columns: 1fr;
     gap: 2px;
+  }
+
+  .settings-grid,
+  .category-limit-form {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-hero {
+    align-items: flex-start;
+    padding: 18px;
+  }
+
+  .settings-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 14px;
+    font-size: 1.45rem;
+  }
+
+  .settings-hero h3 {
+    font-size: 1.35rem;
+  }
+
+  .limit-row {
+    grid-template-columns: 1fr;
   }
 
   .welcome-card {

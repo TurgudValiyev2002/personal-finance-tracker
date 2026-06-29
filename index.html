@@ -25,6 +25,7 @@
           <button class="nav-item" data-view="statistics" type="button"><span class="nav-label">Statistics</span><span class="nav-icon" aria-hidden="true">▣</span></button>
           <button class="nav-item" data-view="advisor" type="button"><span class="nav-label">AI Advisor</span><span class="nav-icon" aria-hidden="true">✦</span></button>
           <button class="nav-item" data-view="profile" type="button"><span class="nav-label">Profile</span><span class="nav-icon" aria-hidden="true">P</span></button>
+          <button class="nav-item" data-view="settings" type="button"><span class="nav-label">Settings</span><span class="nav-icon" aria-hidden="true">S</span></button>
           <button class="nav-item" data-view="backup" type="button"><span class="nav-label">Backup</span><span class="nav-icon" aria-hidden="true">▤</span></button>
           <button class="nav-item" data-view="about" type="button"><span class="nav-label">About</span><span class="nav-icon" aria-hidden="true">i</span></button>
           <button class="nav-item" data-view="contact" type="button"><span class="nav-label">Contact</span><span class="nav-icon" aria-hidden="true">@</span></button>
@@ -255,6 +256,67 @@
             </section>
           </article>
 
+          <article class="content-panel hidden settings-page" data-panel="settings">
+            <div class="settings-hero">
+              <div class="settings-icon" aria-hidden="true">S</div>
+              <div>
+                <h3>Account and spending limits</h3>
+                <p>Update personal details, protect email changes with verification, and set daily, weekly, monthly, or category spending limits.</p>
+              </div>
+            </div>
+
+            <div class="settings-grid">
+              <section class="settings-card">
+                <div class="section-heading compact-heading">
+                  <h4>Profile settings</h4>
+                  <span class="section-note">Email changes require activation from the new inbox.</span>
+                </div>
+                <form id="settingsForm" class="settings-form" autocomplete="on">
+                  <div class="form-grid">
+                    <label><span>Name</span><input id="settingsName" type="text" autocomplete="given-name" required></label>
+                    <label><span>Surname</span><input id="settingsSurname" type="text" autocomplete="family-name" required></label>
+                    <label><span>Gender</span><select id="settingsGender"><option value="">Select</option><option value="female">Female</option><option value="male">Male</option><option value="prefer-not">Prefer not to say</option></select></label>
+                    <label><span>Birth date</span><input id="settingsBirthDate" type="date"></label>
+                    <label><span>Country of residence</span><input id="settingsCountry" type="text" autocomplete="country-name"></label>
+                    <label><span>Country of origin</span><input id="settingsOriginCountry" type="text" autocomplete="country-name"></label>
+                  </div>
+                  <label><span>Login email</span><input id="settingsEmail" type="email" autocomplete="email" required></label>
+                  <div id="settingsFeedback" class="auth-feedback hidden" aria-live="polite"></div>
+                  <button class="primary-button" type="submit">Save settings</button>
+                </form>
+              </section>
+
+              <section class="settings-card">
+                <div class="section-heading compact-heading">
+                  <h4>Global limits</h4>
+                  <button id="enableNotifications" class="secondary-button compact" type="button">Enable browser alerts</button>
+                </div>
+                <div class="form-grid">
+                  <label><span>Daily cost limit</span><input id="globalDailyLimit" type="number" min="0" step="0.01" placeholder="0"></label>
+                  <label><span>Weekly cost limit</span><input id="globalWeeklyLimit" type="number" min="0" step="0.01" placeholder="0"></label>
+                  <label><span>Monthly cost limit</span><input id="globalMonthlyLimit" type="number" min="0" step="0.01" placeholder="0"></label>
+                </div>
+                <button id="saveGlobalLimits" class="primary-button" type="button">Save global limits</button>
+                <div id="limitStatusList" class="limit-status-list"></div>
+              </section>
+            </div>
+
+            <section class="settings-card category-limit-card">
+              <div class="section-heading compact-heading">
+                <h4>Category limits</h4>
+                <span class="section-note">Example: Food monthly limit EUR 300.</span>
+              </div>
+              <div class="category-limit-form">
+                <label><span>Category</span><select id="limitCategory"></select></label>
+                <label><span>Period</span><select id="limitPeriod"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly" selected>Monthly</option></select></label>
+                <label><span>Limit amount</span><input id="categoryLimitAmount" type="number" min="0" step="0.01" placeholder="300"></label>
+                <button id="saveCategoryLimit" class="primary-button" type="button">Save category limit</button>
+              </div>
+              <div id="categoryLimitList" class="category-limit-list"></div>
+              <p class="section-note">Automatic warning emails need an email service backend. This version shows in-app warnings and optional browser notifications immediately.</p>
+            </section>
+          </article>
+
           <article class="content-panel hidden" data-panel="backup">
             <div class="backup-hero">
               <div class="database-icon" aria-hidden="true">
@@ -377,6 +439,31 @@
         <button id="closeAnalysisDialog" class="icon-button" type="button" aria-label="Close analysis">x</button>
       </div>
       <div id="analysisDialogBody" class="analysis-dialog-body"></div>
+    </dialog>
+
+    <dialog id="limitDialog" class="limit-dialog">
+      <div class="modal-heading">
+        <div>
+          <span class="mode-chip edit">Limit warning</span>
+          <h3 id="limitDialogTitle">Spending limit warning</h3>
+          <p id="limitDialogBody">A spending limit needs attention.</p>
+        </div>
+        <button id="closeLimitDialog" class="icon-button" type="button" aria-label="Close limit warning">x</button>
+      </div>
+      <button id="ackLimitDialog" class="primary-button" type="button">I understand</button>
+    </dialog>
+
+    <dialog id="periodReviewDialog" class="period-review-dialog">
+      <div class="modal-heading">
+        <div>
+          <span class="mode-chip add">AI period review</span>
+          <h3 id="periodReviewTitle">Finance review</h3>
+          <p id="periodReviewModel">Model: preparing</p>
+        </div>
+        <button id="closePeriodReview" class="icon-button" type="button" aria-label="Close period review">x</button>
+      </div>
+      <div id="periodReviewBody" class="period-review-body">Preparing review...</div>
+      <button id="ackPeriodReview" class="primary-button" type="button">Close review</button>
     </dialog>
 
     <dialog id="authDialog" class="auth-dialog">
