@@ -20,7 +20,8 @@
         </div>
 
         <nav class="nav-stack">
-          <button class="nav-item active" data-view="dashboard" type="button"><span class="nav-label">Overview</span><span class="nav-icon" aria-hidden="true">⌂</span></button>
+          <button class="nav-item active" data-view="budget" type="button"><span class="nav-label">Budget</span><span class="nav-icon" aria-hidden="true">B</span></button>
+          <button class="nav-item" data-view="dashboard" type="button"><span class="nav-label">Overview</span><span class="nav-icon" aria-hidden="true">⌂</span></button>
           <button class="nav-item" data-view="transactions" type="button"><span class="nav-label">Transactions</span><span class="nav-icon" aria-hidden="true">↕</span></button>
           <button class="nav-item" data-view="statistics" type="button"><span class="nav-label">Statistics</span><span class="nav-icon" aria-hidden="true">▣</span></button>
           <button class="nav-item" data-view="advisor" type="button"><span class="nav-label">AI Advisor</span><span class="nav-icon" aria-hidden="true">✦</span></button>
@@ -51,7 +52,7 @@
         <header class="topbar">
           <div class="title-block">
             <p class="eyebrow">Personal money dashboard</p>
-            <h2 id="pageTitle">Overview</h2>
+            <h2 id="pageTitle">Budget</h2>
             <p id="monthSubtitle" class="month-subtitle">June 2026 report</p>
           </div>
           <div class="top-actions">
@@ -107,7 +108,59 @@
         </section>
 
         <section class="workspace-grid">
-          <article class="content-panel" data-panel="dashboard">
+          <article class="content-panel budget-page" data-panel="budget">
+            <section class="budget-hero-card">
+              <div class="budget-animation" aria-hidden="true">
+                <span class="coin coin-one"></span>
+                <span class="coin coin-two"></span>
+                <span class="coin coin-three"></span>
+                <div class="vault-core">
+                  <span></span>
+                </div>
+              </div>
+              <div class="budget-copy">
+                <span class="budget-chip">Permanent savings balance</span>
+                <h3>Budget Control Center</h3>
+                <p>Add the savings you already have. After each monthly report is submitted, that month&apos;s savings are added here automatically. If the month is negative, it is subtracted.</p>
+              </div>
+              <div class="budget-total-card">
+                <span>Available budget</span>
+                <strong id="budgetTotal">€0.00</strong>
+                <small id="budgetTotalHint">Starting balance plus submitted monthly savings.</small>
+              </div>
+            </section>
+
+            <section class="budget-grid">
+              <article class="budget-card starting-balance-card">
+                <div class="section-heading compact-heading">
+                  <h4>Starting savings</h4>
+                  <span class="section-note">Money already saved before using this app.</span>
+                </div>
+                <label><span>Current saved amount</span><input id="budgetStartingBalance" type="number" min="0" step="0.01" placeholder="600"></label>
+                <button id="saveBudgetStartingBalance" class="primary-button" type="button">Save starting savings</button>
+              </article>
+
+              <article class="budget-card">
+                <h4>Budget composition</h4>
+                <div id="budgetComposition" class="budget-composition"></div>
+              </article>
+
+              <article class="budget-card">
+                <h4>Selected month status</h4>
+                <div id="budgetSelectedMonth" class="budget-month-status"></div>
+              </article>
+            </section>
+
+            <section class="budget-ledger-card">
+              <div class="section-heading compact-heading">
+                <h4>Submitted month ledger</h4>
+                <span class="section-note">Only submitted months affect the permanent budget.</span>
+              </div>
+              <div id="budgetLedger" class="budget-ledger"></div>
+            </section>
+          </article>
+
+          <article class="content-panel hidden" data-panel="dashboard">
             <div class="section-heading">
               <h3>Month activity</h3>
               <select id="quickTypeFilter" aria-label="Quick type filter">

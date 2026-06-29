@@ -47,6 +47,7 @@ const state = {
   entries: [],
   reports: {},
   limits: defaultLimits(),
+  budget: defaultBudget(),
   goals: {},
   recurringRules: [],
   notices: defaultNotices(),
@@ -54,7 +55,7 @@ const state = {
     active: false
   },
   prefs: loadPrefs(),
-  activeView: "dashboard",
+  activeView: "budget",
   selectedMonth: monthKey(new Date()),
   auth: {
     configured: false,
@@ -117,6 +118,13 @@ const els = {
   sidebarSavings: document.getElementById("sidebarSavings"),
   savingsBarFill: document.getElementById("savingsBarFill"),
   savingsHint: document.getElementById("savingsHint"),
+  budgetTotal: document.getElementById("budgetTotal"),
+  budgetTotalHint: document.getElementById("budgetTotalHint"),
+  budgetStartingBalance: document.getElementById("budgetStartingBalance"),
+  saveBudgetStartingBalance: document.getElementById("saveBudgetStartingBalance"),
+  budgetComposition: document.getElementById("budgetComposition"),
+  budgetSelectedMonth: document.getElementById("budgetSelectedMonth"),
+  budgetLedger: document.getElementById("budgetLedger"),
   quickTypeFilter: document.getElementById("quickTypeFilter"),
   recentMonthsTable: document.getElementById("recentMonthsTable"),
   dailyList: document.getElementById("dailyList"),
@@ -284,6 +292,13 @@ function defaultLimits() {
   };
 }
 
+function defaultBudget() {
+  return {
+    startingBalance: 0,
+    updatedAt: ""
+  };
+}
+
 function defaultNotices() {
   return {
     limitWarnings: {},
@@ -317,6 +332,14 @@ function cleanNotices(value) {
   return {
     limitWarnings: value?.limitWarnings && typeof value.limitWarnings === "object" ? value.limitWarnings : {},
     periodReviews: value?.periodReviews && typeof value.periodReviews === "object" ? value.periodReviews : {}
+  };
+}
+
+function cleanBudget(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return defaultBudget();
+  return {
+    startingBalance: Math.max(0, Number(value.startingBalance) || 0),
+    updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : ""
   };
 }
 
@@ -381,6 +404,7 @@ async function saveFinanceToCloud() {
       entries: state.entries,
       reports: state.reports,
       limits: state.limits,
+      budget: state.budget,
       notices: state.notices,
       goals: state.goals,
       recurringRules: state.recurringRules
@@ -545,6 +569,31 @@ function summarize(entries) {
     savings: earnings - costs,
     costCount: entries.filter((entry) => entry.type === "cost").length,
     earningCount: entries.filter((entry) => entry.type === "earning").length
+  };
+}
+
+function submittedBudgetRows() {
+  return Object.entries(state.reports)
+    .filter(([, report]) => report?.submittedAt && report.summary)
+    .map(([month, report]) => ({
+      month,
+      submittedAt: report.submittedAt,
+      costs: Number(report.summary.costs) || 0,
+      earnings: Number(report.summary.earnings) || 0,
+      savings: Number(report.summary.savings) || 0
+    }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+}
+
+function budgetSnapshot() {
+  const rows = submittedBudgetRows();
+  const submittedSavings = rows.reduce((sum, row) => sum + row.savings, 0);
+  const startingBalance = Number(state.budget.startingBalance) || 0;
+  return {
+    rows,
+    startingBalance,
+    submittedSavings,
+    total: startingBalance + submittedSavings
   };
 }
 
@@ -750,10 +799,10 @@ function renderReportState() {
 
 function renderSummary() {
   const monthly = summarize(entriesInMonth());
-  const allTime = summarize(state.entries);
+  const budget = budgetSnapshot();
   const savingsRate = monthly.earnings > 0 ? (monthly.savings / monthly.earnings) * 100 : 0;
-  const barBase = Math.max(allTime.earnings, allTime.costs, 1);
-  const savingsPercent = Math.max(0, Math.min(100, (allTime.savings / barBase) * 100));
+  const budgetBase = Math.max(budget.startingBalance + Math.abs(budget.submittedSavings), Math.abs(budget.total), 1);
+  const savingsPercent = Math.max(0, Math.min(100, (budget.total / budgetBase) * 100));
 
   els.monthCosts.textContent = money(monthly.costs);
   els.monthEarnings.textContent = money(monthly.earnings);
@@ -765,13 +814,90 @@ function renderSummary() {
     ? `${Math.round(savingsRate)}% of earnings saved`
     : "No earnings in this month";
 
-  els.sidebarSavings.textContent = money(allTime.savings);
-  els.sidebarSavings.style.color = allTime.savings >= 0 ? "#ffffff" : "#ffc8c0";
+  els.sidebarSavings.textContent = money(budget.total);
+  els.sidebarSavings.style.color = budget.total >= 0 ? "#ffffff" : "#ffc8c0";
   els.savingsBarFill.style.width = `${savingsPercent}%`;
-  els.savingsBarFill.style.background = allTime.savings >= 0 ? "#22c55e" : "#f87171";
-  els.savingsHint.textContent = allTime.earnings > 0
-    ? `${Math.round((allTime.savings / allTime.earnings) * 100)}% saved from all earnings`
-    : "No entries yet.";
+  els.savingsBarFill.style.background = budget.total >= 0 ? "#22c55e" : "#f87171";
+  els.savingsHint.textContent = budget.rows.length
+    ? `${budget.rows.length} submitted ${budget.rows.length === 1 ? "month" : "months"} included`
+    : "Add starting savings or submit a month.";
+}
+
+function renderBudgetPage() {
+  if (!els.budgetTotal) return;
+  const snapshot = budgetSnapshot();
+  const selectedSummary = summarize(entriesInMonth());
+  const selectedSubmitted = isMonthSubmitted(state.selectedMonth);
+  const selectedImpact = selectedSubmitted ? Number(state.reports[state.selectedMonth]?.summary?.savings) || 0 : selectedSummary.savings;
+  const positiveSubmitted = snapshot.rows.filter((row) => row.savings >= 0).reduce((sum, row) => sum + row.savings, 0);
+  const negativeSubmitted = snapshot.rows.filter((row) => row.savings < 0).reduce((sum, row) => sum + Math.abs(row.savings), 0);
+  const compositionBase = Math.max(snapshot.startingBalance + positiveSubmitted + negativeSubmitted, 1);
+
+  els.budgetTotal.textContent = money(snapshot.total);
+  els.budgetTotal.classList.toggle("negative", snapshot.total < 0);
+  els.budgetTotalHint.textContent = `${money(snapshot.startingBalance)} starting savings ${snapshot.submittedSavings >= 0 ? "+" : "-"} ${money(Math.abs(snapshot.submittedSavings))} submitted net movement.`;
+  els.budgetStartingBalance.value = snapshot.startingBalance || "";
+
+  els.budgetComposition.innerHTML = `
+    <div class="budget-composition-row">
+      <span>Starting savings</span>
+      <strong>${money(snapshot.startingBalance)}</strong>
+      <div class="budget-composition-bar"><i class="start" style="width:${Math.min(100, (snapshot.startingBalance / compositionBase) * 100)}%"></i></div>
+    </div>
+    <div class="budget-composition-row">
+      <span>Positive submitted months</span>
+      <strong>${money(positiveSubmitted)}</strong>
+      <div class="budget-composition-bar"><i class="gain" style="width:${Math.min(100, (positiveSubmitted / compositionBase) * 100)}%"></i></div>
+    </div>
+    <div class="budget-composition-row">
+      <span>Negative submitted months</span>
+      <strong class="negative">${money(negativeSubmitted)}</strong>
+      <div class="budget-composition-bar"><i class="loss" style="width:${Math.min(100, (negativeSubmitted / compositionBase) * 100)}%"></i></div>
+    </div>
+  `;
+
+  els.budgetSelectedMonth.innerHTML = `
+    <div class="budget-month-badge ${selectedSubmitted ? "locked" : "pending"}">${selectedSubmitted ? "Submitted month" : "Open month"}</div>
+    <strong>${monthName(state.selectedMonth)}</strong>
+    <p>${selectedSubmitted
+      ? `${money(selectedImpact)} is already included in the permanent budget.`
+      : `${money(selectedImpact)} is still pending. It will affect the budget only after monthly submission.`}</p>
+    <div class="budget-impact ${selectedImpact >= 0 ? "positive" : "negative"}">${selectedImpact >= 0 ? "+" : "-"}${money(Math.abs(selectedImpact))}</div>
+  `;
+
+  if (!snapshot.rows.length) {
+    els.budgetLedger.innerHTML = `<p class="empty-state">No submitted months yet. Submit a monthly report and its savings will appear here automatically.</p>`;
+    return;
+  }
+  let running = snapshot.startingBalance;
+  els.budgetLedger.innerHTML = snapshot.rows.map((row) => {
+    running += row.savings;
+    return `
+      <article class="budget-ledger-row ${row.savings >= 0 ? "gain" : "loss"}">
+        <div>
+          <strong>${monthName(row.month)}</strong>
+          <span>Submitted ${formatDate(row.submittedAt.slice(0, 10))}</span>
+        </div>
+        <span>${money(row.earnings)} earned</span>
+        <span>${money(row.costs)} spent</span>
+        <b>${row.savings >= 0 ? "+" : "-"}${money(Math.abs(row.savings))}</b>
+        <em>${money(running)}</em>
+      </article>
+    `;
+  }).join("");
+}
+
+function saveBudgetStartingBalance() {
+  if (!requireLogin("to update your budget balance")) return;
+  const amount = Math.max(0, Number(els.budgetStartingBalance.value) || 0);
+  state.budget = {
+    ...state.budget,
+    startingBalance: Number(amount.toFixed(2)),
+    updatedAt: new Date().toISOString()
+  };
+  saveFinanceState();
+  renderAll();
+  showToast("Starting savings saved.");
 }
 
 function renderRecentMonthsTable() {
@@ -2146,6 +2272,7 @@ function renderAll() {
   applyMonthTheme();
   renderReportState();
   renderSummary();
+  renderBudgetPage();
   renderRecentMonthsTable();
   renderGoalProgressPanel();
   renderDailyChart();
@@ -2177,6 +2304,7 @@ function switchView(view) {
   syncViewVisibility();
   els.pageTitle.textContent = {
     dashboard: "Overview",
+    budget: "Budget",
     transactions: "Transactions",
     statistics: "Statistics",
     advisor: "AI Advisor",
@@ -2352,6 +2480,7 @@ function exportJson() {
       entries: state.entries,
       reports: state.reports,
       limits: state.limits,
+      budget: state.budget,
       notices: state.notices,
       goals: state.goals,
       recurringRules: state.recurringRules
@@ -2401,6 +2530,7 @@ function importJson(file) {
       state.entries = clean;
       state.reports = parsed.reports && typeof parsed.reports === "object" ? parsed.reports : {};
       state.limits = cleanLimits(parsed.limits);
+      state.budget = cleanBudget(parsed.budget);
       state.notices = cleanNotices(parsed.notices);
       state.goals = cleanGoals(parsed.goals);
       state.recurringRules = cleanRecurringRules(parsed.recurringRules);
@@ -2464,6 +2594,7 @@ function startDemoMode() {
     global: { daily: 120, weekly: 450, monthly: 1500 },
     categories: { Food: { daily: 0, weekly: 100, monthly: 300 } }
   });
+  state.budget = { startingBalance: 950, updatedAt: new Date().toISOString() };
   state.goals = { [state.selectedMonth]: 1500 };
   state.recurringRules = [
     { id: salaryRuleId, type: "earning", amount: 3210, category: "Salary", description: "Demo monthly salary", day: 1, startMonth: state.selectedMonth, active: true },
@@ -2958,6 +3089,7 @@ function applyCloudFinance(finance) {
     state.entries = [];
     state.reports = {};
     state.limits = defaultLimits();
+    state.budget = defaultBudget();
     state.notices = defaultNotices();
     state.goals = {};
     state.recurringRules = [];
@@ -2971,11 +3103,13 @@ function applyCloudFinance(finance) {
   const cloudReports = finance.reports && typeof finance.reports === "object" ? finance.reports : {};
   const cloudGoals = cleanGoals(finance.goals);
   const cloudRecurringRules = cleanRecurringRules(finance.recurringRules);
-  const hasCloudData = cloudEntries.length || Object.keys(cloudReports).length || Object.keys(cloudGoals).length || cloudRecurringRules.length;
+  const cloudBudget = cleanBudget(finance.budget);
+  const hasCloudData = cloudEntries.length || Object.keys(cloudReports).length || Object.keys(cloudGoals).length || cloudRecurringRules.length || cloudBudget.startingBalance > 0;
   if (!hasCloudData) {
     state.entries = [];
     state.reports = {};
     state.limits = cleanLimits(finance.limits);
+    state.budget = cloudBudget;
     state.notices = cleanNotices(finance.notices);
     state.goals = cloudGoals;
     state.recurringRules = cloudRecurringRules;
@@ -2989,6 +3123,7 @@ function applyCloudFinance(finance) {
   state.entries = cloudEntries;
   state.reports = cloudReports;
   state.limits = cleanLimits(finance.limits);
+  state.budget = cloudBudget;
   state.notices = cleanNotices(finance.notices);
   state.goals = cloudGoals;
   state.recurringRules = cloudRecurringRules;
@@ -3003,6 +3138,7 @@ function clearPrivateFinance() {
   state.entries = [];
   state.reports = {};
   state.limits = defaultLimits();
+  state.budget = defaultBudget();
   state.notices = defaultNotices();
   state.goals = {};
   state.recurringRules = [];
@@ -3128,6 +3264,7 @@ function bindEvents() {
   els.saveGlobalLimits?.addEventListener("click", saveGlobalLimits);
   els.saveCategoryLimit?.addEventListener("click", saveCategoryLimit);
   els.categoryLimitList?.addEventListener("click", handleCategoryLimitClick);
+  els.saveBudgetStartingBalance?.addEventListener("click", saveBudgetStartingBalance);
   els.saveGoal?.addEventListener("click", saveSavingsGoal);
   els.goalList?.addEventListener("click", handleGoalListClick);
   els.applyRecurringNow?.addEventListener("click", applyRecurringNow);
